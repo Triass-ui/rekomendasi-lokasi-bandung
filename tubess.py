@@ -371,7 +371,7 @@ if st.button("Tampilkan Rekomendasi"):
     bars = ax.bar(labels, scores_pct, width=0.5)
 
     ax.set_ylim(0, 100)
-    ax.set_ylabel("(%")
+    ax.set_ylabel("Skor (%)")
     ax.set_title("Skor Total Lokasi (dalam %) — Semakin tinggi semakin direkomendasikan")
 
     # Annotate with one decimal and include mini legend text on plot
@@ -382,14 +382,14 @@ if st.button("Tampilkan Rekomendasi"):
     st.pyplot(fig)
 
     # Tampilkan keterangan bobot tepat di bawah grafik (agar jelas)
-    st.markdown(f"""
-- **Harga tanah:** {row['price_score']*100:.0f}%  
-- **Risiko banjir:** {row['flood']}  
-- **Tingkat keramaian:** {row['crowd']}  
-- **Akses fasilitas publik:** {row['proximity']}  
-- **RTH:** {row['rth']}%
+    st.markdown("""
+**Keterangan skor:** Skor akhir dihitung dari kombinasi kriteria berikut dengan bobot:
+- **Harga tanah:** 40%
+- **Risiko banjir:** 30%
+- **Tingkat keramaian:** 15%
+- **Akses fasilitas publik:** 10%
+- **RTH:** 5%
 """)
-
     st.caption("Contoh interpretasi: Nilai 78% artinya lokasi memperoleh skor total 0.78 berdasarkan bobot di atas.")
 
     # ============================================================
