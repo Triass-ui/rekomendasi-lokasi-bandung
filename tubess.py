@@ -382,12 +382,14 @@ if st.button("Tampilkan Rekomendasi"):
     st.pyplot(fig)
 
     # Tampilkan keterangan bobot tepat di bawah grafik (agar jelas)
-    st.markdown("**Keterangan skor:** Skor akhir dihitung dari kombinasi kriteria berikut dengan bobot:")
-    st.markdown("- **Harga tanah:** 40%"):** 40%  
-- **Risiko banjir:** 30%  
-- **Tingkat keramaian:** 15%  
-- **Akses fasilitas publik:** 10%  
-- **RTH:** 5%")
+    st.markdown(f"""
+- **Harga tanah:** {row['price_score']*100:.0f}%  
+- **Risiko banjir:** {row['flood']}  
+- **Tingkat keramaian:** {row['crowd']}  
+- **Akses fasilitas publik:** {row['proximity']}  
+- **RTH:** {row['rth']}%
+""")
+
     st.caption("Contoh interpretasi: Nilai 78% artinya lokasi memperoleh skor total 0.78 berdasarkan bobot di atas.")
 
     # ============================================================
