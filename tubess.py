@@ -210,7 +210,7 @@ if st.button("Tampilkan Rekomendasi"):
 
         # --- TAMPILKAN GAMBAR ---
         if os.path.exists(img_path):
-            st.image(img_path, use_column_width=True)
+            st.image(img_path, width=300)
         else:
             # fallback khusus untuk Cidadap (atau lainnya kalau mau)
             if row["name"].strip().lower() == "cidadap":
@@ -297,3 +297,4 @@ if st.button("Tampilkan Rekomendasi"):
         )
 
     st.pyplot(fig)
+
