@@ -365,7 +365,7 @@ if st.button("Tampilkan Rekomendasi"):
 
     num_vars = len(categories)
 
-    fig = plt.figure(figsize=(4.3, 4.3))
+    fig = plt.figure(figsize=(3.5, 3.5))
     ax = plt.subplot(111, polar=True)
 
     angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False).tolist()
@@ -378,7 +378,7 @@ if st.button("Tampilkan Rekomendasi"):
         ax.fill(angles, v, alpha=0.15)
 
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(categories, fontsize=10)
+    ax.set_xticklabels(categories, fontsize=8)
     ax.set_yticks([])
     ax.set_ylim(0, 1)
 
@@ -386,4 +386,5 @@ if st.button("Tampilkan Rekomendasi"):
     ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
     st.pyplot(fig)
+
 
