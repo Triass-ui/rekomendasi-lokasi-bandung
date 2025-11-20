@@ -383,9 +383,10 @@ if st.button("Tampilkan Rekomendasi"):
     ax.set_ylim(0, 1)
 
     plt.title("Perbandingan Kriteria Lokasi (Radar Chart)", size=7, pad=10)
-    ax.legend(loc="upper right", bbox_to_anchor=(1, 1), fontsize=4)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1), fontsize=4)
 
     st.pyplot(fig)
+
 
 
 
