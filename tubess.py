@@ -5,14 +5,10 @@ import matplotlib.pyplot as plt
 import os
 import re
 
-# ============================================================
 # PATH BASE
-# ============================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ============================================================
 # 1. LOAD DATA + NORMALISASI
-# ============================================================
 
 def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
     if os.path.exists(os.path.join(BASE_DIR, path_xlsx)):
@@ -22,9 +18,7 @@ def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
     else:
         st.error("File locations.xlsx atau locations.csv tidak ditemukan.")
         st.stop()
-
     df.columns = [c.lower() for c in df.columns]
-
     rename_map = {
         "nama": "name",
         "harga_per_m2": "price_per_m2",
@@ -34,7 +28,6 @@ def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
         "lokasi_strategis": "proximity_public"
     }
     df = df.rename(columns=rename_map)
-
     required = ["name", "price_per_m2", "flood_risk", "crowd_level", "rth_percent", "proximity_public"]
     missing = [r for r in required if r not in df.columns]
     if missing:
@@ -45,7 +38,6 @@ def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
         "rendah": "low", "sedang": "medium", "tinggi": "high",
         "low": "low", "medium": "medium", "high": "high"
     }
-
     def map_ind(val):
         if pd.isna(val):
             return "medium"
@@ -55,18 +47,14 @@ def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
     df["flood_risk"] = df["flood_risk"].apply(map_ind)
     df["crowd_level"] = df["crowd_level"].apply(map_ind)
     df["proximity_public"] = df["proximity_public"].apply(map_ind)
-
-    # handle price: if original is in juta (column name suggests juta), convert to actual IDR
     df["price_per_m2_million"] = pd.to_numeric(df["price_per_m2"], errors="coerce").fillna(0)
     df["price_per_m2"] = df["price_per_m2_million"] * 1_000_000
-
     df["rth_percent"] = pd.to_numeric(df["rth_percent"], errors="coerce").fillna(0)
 
     return df
 
-# ============================================================
 # 2. SCORING
-# ============================================================
+
 FLOOD_MAP = {"low": 1.0, "medium": 0.5, "high": 0.0}
 CROWD_MAP = {"low": 0.0, "medium": 0.5, "high": 1.0}
 PROX_MAP  = {"low": 0.0, "medium": 0.5, "high": 1.0}
@@ -113,11 +101,10 @@ def compute_scores(df):
 
     return df2.sort_values("score", ascending=False)
 
-# ============================================================
 # UTIL: sanitize & flexible image path
-# ============================================================
+
 def sanitize_filename(name):
-    # lower, replace spaces with underscore, remove non-alnum/underscore
+    
     s = name.lower().strip()
     s = s.replace(" ", "_")
     s = re.sub(r'[^a-z0-9_]', '', s)
@@ -126,19 +113,13 @@ def sanitize_filename(name):
 def possible_image_paths(name):
     """Return list of candidate image paths to try (most likely first)."""
     candidates = []
-    # sanitized with underscore
     candidates.append(os.path.join(BASE_DIR, sanitize_filename(name)))
-    # sanitized without underscore (remove spaces)
     candidates.append(os.path.join(BASE_DIR, name.lower().replace(" ", "") + ".jpg"))
-    # original lowercase with spaces replaced by hyphen
     candidates.append(os.path.join(BASE_DIR, name.lower().replace(" ", "-") + ".jpg"))
-    # fallback: original name as-is
     candidates.append(os.path.join(BASE_DIR, name + ".jpg"))
-    # also try in static/images/lokasi subfolder if user placed there
     dirpath = os.path.join(BASE_DIR, "static", "images", "lokasi")
     for p in list(candidates):
-        candidates.append(os.path.join(dirpath, os.path.basename(p)))
-    # keep unique and existing order
+        candidates.append(os.path.join(dirpath, os.path.basename(p)))    
     unique = []
     for c in candidates:
         if c not in unique:
@@ -151,9 +132,8 @@ def find_existing_image(name):
             return p
     return None
 
-# ============================================================
 # 3. STREAMLIT UI
-# ============================================================
+
 st.set_page_config(layout="wide")
 st.title("🏡 Rekomendasi Pembelian Tanah di Kota Bandung")
 st.markdown("""
@@ -172,18 +152,13 @@ st.markdown("""
 
 budget_miliar = st.number_input("💰 Masukkan Budget (dalam MILIAR)", min_value=0.1, step=0.1, value=1.0)
 budget = budget_miliar * 1_000_000_000
-
 luas = st.number_input("📏 Masukkan Luas Tanah (m²)", min_value=20, step=5, value=100)
-
 df = read_locations()
 max_loc = len(df)
-
-# jumlah_rekom: min=1, max=max_loc, default=min(10, max_loc)
 jumlah_rekom = st.number_input("🔢 Jumlah lokasi yang ingin dianalisis:", min_value=1, max_value=max_loc, value=min(10, max_loc), step=1)
 
-# ---------------------------
 # Tampilkan bobot ke user sebelum tombol
-# ---------------------------
+
 st.markdown("### 📘 Bobot Penilaian Lokasi")
 st.markdown("""
 - **Harga tanah:** 40% (semakin murah → skor lebih tinggi)  
@@ -192,21 +167,17 @@ st.markdown("""
 - **Akses fasilitas publik:** 10% (high → skor lebih tinggi)  
 - **RTH:** 5% (persentase RTH lebih besar → skor lebih tinggi)  
 """)
-
 st.caption("Penjelasan: skor akhir dihitung dengan menggabungkan kelima kriteria di atas sesuai bobot. Grafik menampilkan skor akhir dalam persen (0–100%).")
 
-# ============================================================
 # KETIKA TOMBOL DIKLIK
-# ============================================================
+
 if st.button("Tampilkan Rekomendasi"):
     scored = compute_scores(df)
     scored["total_price"] = scored["price_per_m2"] * luas
-
     affordable = scored[scored["total_price"] <= budget]
     if affordable.empty:
         st.error("Tidak ada lokasi sesuai budget Anda.")
         st.stop()
-
     topk = affordable.head(jumlah_rekom).reset_index(drop=True)
     top3 = topk.head(3).reset_index(drop=True)
 
@@ -239,12 +210,10 @@ if st.button("Tampilkan Rekomendasi"):
     st.subheader(f"📌 {len(topk)} Lokasi yang Dianalisis (sesuai budget)")
     st.dataframe(display_tbl, use_container_width=True)
 
-    # ============================================================
     # 4. REKOMENDASI TOP 3
-    # ============================================================
+    
     st.subheader("🏆 3 Rekomendasi Lokasi Terbaik")
 
-    # Optional: database manual kelebihan/kekurangan per kecamatan
     informasi_lokasi = {
         "arcamanik": {
             "kelebihan": ["Akses jalan mudah", "Harga relatif terjangkau"],
@@ -266,20 +235,14 @@ if st.button("Tampilkan Rekomendasi"):
             "kelebihan": ["Udara sejuk, lingkungan hijau", "RTH luas"],
             "kekurangan": ["Beberapa area aksesnya tidak terlalu cepat"]
         }
-        # tambahkan pilihan lain sesuai datasetmu
     }
 
     for i, row in top3.iterrows():
         st.markdown(f"### 📍 {row['name']}")
-
-        # --- GENERATE PATH GAMBAR (coba beberapa kemungkinan) ---
         img_path = find_existing_image(row["name"])
-
-        # --- TAMPILKAN GAMBAR ---
         if img_path:
             st.image(img_path, width=300)
         else:
-            # fallback khusus untuk Cidadap (atau lainnya kalau mau)
             if row["name"].strip().lower() == "cidadap":
                 st.markdown("""
                 **📘 Deskripsi Lokasi Cidadap (Foto tidak tersedia)**  
@@ -298,10 +261,8 @@ if st.button("Tampilkan Rekomendasi"):
         st.write(f"- **Akses fasilitas publik:** {row['proximity_public']}")
         st.write(f"- **RTH:** {row['rth_percent']:.0f}%")
 
-        # =====================================================
-        # KELEBIHAN & KEKURANGAN (pastikan selalu ada)
-        # =====================================================
-        # pertama: dari logika scoring (dinamis)
+        # KELEBIHAN & KEKURANGAN 
+        
         advantages = []
         disadvantages = []
 
@@ -329,12 +290,9 @@ if st.button("Tampilkan Rekomendasi"):
             advantages.append("Harga relatif murah dibanding kecamatan lain.")
         else:
             disadvantages.append("Harga cenderung mahal.")
-
-        # kedua: tambahkan insight manual (jika tersedia) untuk melengkapi
         key = row["name"].strip().lower().replace(" ", "").replace("-", "")
         if key in informasi_lokasi:
             info = informasi_lokasi[key]
-            # gabungkan (hindari duplikat)
             for x in info.get("kelebihan", []):
                 if x not in advantages:
                     advantages.append(x)
@@ -342,7 +300,6 @@ if st.button("Tampilkan Rekomendasi"):
                 if x not in disadvantages:
                     disadvantages.append(x)
 
-        # tampilkan
         st.markdown("### 🟢 Kelebihan:")
         if advantages:
             for a in advantages:
@@ -359,9 +316,8 @@ if st.button("Tampilkan Rekomendasi"):
 
         st.markdown("---")
 
-    # ============================================================
     # 5. GRAFIK BAR — Perbandingan Skor Total
-    # ============================================================
+   
     st.subheader("📊 Perbandingan Antar Kecamatan (Top 3)")
 
     labels = top3["name"].tolist()
@@ -373,15 +329,11 @@ if st.button("Tampilkan Rekomendasi"):
     ax.set_ylim(0, 100)
     ax.set_ylabel("Skor (%)")
     ax.set_title("Skor Total Lokasi (dalam %) — Semakin tinggi semakin direkomendasikan")
-
-    # Annotate with one decimal and include mini legend text on plot
     for bar, h in zip(bars, scores_pct):
         ax.annotate(f"{h:.1f}%", xy=(bar.get_x() + bar.get_width() / 2, h),
                     xytext=(0, 6), textcoords="offset points", ha="center")
 
     st.pyplot(fig)
-
-    # Tampilkan keterangan bobot tepat di bawah grafik (agar jelas)
     st.markdown("""
 **Keterangan skor:** Skor akhir dihitung dari kombinasi kriteria berikut dengan bobot:
 - **Harga tanah:** 40%
@@ -393,17 +345,14 @@ if st.button("Tampilkan Rekomendasi"):
     st.caption("Contoh interpretasi: Nilai 78% artinya lokasi memperoleh skor total 0.78 berdasarkan bobot di atas.")
 
 
+# 6. RADAR CHART (SPIDER CHART)
 
-# ============================================================
-# 6. RADAR CHART (SPIDER CHART) — Bahasa Indonesia
-# ============================================================
-    st.subheader("🕸️ Radar Chart Perbandingan Kriteria (Top 3)")
+    st.subheader("Radar Chart Perbandingan Kriteria (Top 3)")
 
     categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
 
     values = []
     for _, row in top3.iterrows():
-        # Balik flood supaya low = rendah, high = tinggi di chart
         flood_risk_score = 1 - row["flood_score"]
 
         values.append([
@@ -424,21 +373,16 @@ if st.button("Tampilkan Rekomendasi"):
 
     for i, loc in enumerate(top3["name"]):
         v = values[i]
-        v = v + v[:1]   # tutup loop
+        v = v + v[:1]   
         ax.plot(angles, v, linewidth=2, label=loc)
         ax.fill(angles, v, alpha=0.15)
 
     ax.set_xticks(angles[:-1])
     ax.set_xticklabels(categories, fontsize=10)
-
-    # Hilangkan angka-angka radial
     ax.set_yticks([])
-
-    # Tetapkan skala 0-1
     ax.set_ylim(0, 1)
 
     plt.title("Perbandingan Kriteria Lokasi (Radar Chart)", size=14, pad=20)
     ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
     st.pyplot(fig)
-
