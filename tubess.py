@@ -365,7 +365,7 @@ if st.button("Tampilkan Rekomendasi"):
 
     num_vars = len(categories)
 
-    fig = plt.figure(figsize=(3.5, 3.5))
+    fig = plt.figure(figsize=(2.5, 2.5))
     ax = plt.subplot(111, polar=True)
 
     angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False).tolist()
@@ -378,13 +378,14 @@ if st.button("Tampilkan Rekomendasi"):
         ax.fill(angles, v, alpha=0.15)
 
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(categories, fontsize=8)
+    ax.set_xticklabels(categories, fontsize=5)
     ax.set_yticks([])
     ax.set_ylim(0, 1)
 
-    plt.title("Perbandingan Kriteria Lokasi (Radar Chart)", size=14, pad=20)
-    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
+    plt.title("Perbandingan Kriteria Lokasi (Radar Chart)", size=7, pad=10)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.2, 1.1))
 
     st.pyplot(fig)
+
 
 
