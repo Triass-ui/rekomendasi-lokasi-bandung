@@ -392,44 +392,51 @@ if st.button("Tampilkan Rekomendasi"):
 """)
     st.caption("Contoh interpretasi: Nilai 78% artinya lokasi memperoleh skor total 0.78 berdasarkan bobot di atas.")
 
-    # ============================================================
-    # 6. RADAR CHART (SPIDER CHART) — Bahasa Indonesia
-    # ============================================================
-    st.subheader("🕸️ Radar Chart Perbandingan Kriteria (Top 3)")
 
-    categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
 
-    values = []
-    for _, row in top3.iterrows():
-        values.append([
-            row["price_score"],
-            row["flood_score"],
-            row["crowd_score"],
-            row["prox_score"],
-            row["rth_score"]
-        ])
+# ============================================================
+# 6. RADAR CHART (SPIDER CHART) — Bahasa Indonesia
+# ============================================================
+st.subheader("🕸️ Radar Chart Perbandingan Kriteria (Top 3)")
 
-    num_vars = len(categories)
+categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
 
-    fig = plt.figure(figsize=(6, 6))
-    ax = plt.subplot(111, polar=True)
+values = []
+for _, row in top3.iterrows():
+    # Ambil skor seperti biasa
+    price = row["price_score"]
+    crowd = row["crowd_score"]
+    prox = row["prox_score"]
+    rth = row["rth_score"]
+    # Untuk flood, ubah jadi "resiko" = 1 - skor flood, sehingga low risk = nilai rendah
+    flood_risk_score = 1.0 - row["flood_score"]
 
-    angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False).tolist()
-    angles += angles[:1]
+    values.append([price, flood_risk_score, crowd, prox, rth])
 
-    # warna berbeda agar mudah dibedakan (matplotlib default palette)
-    for i, loc in enumerate(top3["name"]):
-        v = values[i]
-        v = list(v) + [v[0]]
-        ax.plot(angles, v, linewidth=2, label=loc)
-        ax.fill(angles, v, alpha=0.15)
+num_vars = len(categories)
 
-    ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(categories, fontsize=10)
+fig = plt.figure(figsize=(6, 6))
+ax = plt.subplot(111, polar=True)
 
-    ax.set_ylim(0, 1)
+angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+angles += angles[:1]
 
-    plt.title("Radar Chart Perbandingan Kriteria Lokasi", size=14, pad=20)
-    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
+for i, loc in enumerate(top3["name"]):
+    v = values[i]
+    v = list(v) + [v[0]]  # tutup loop
+    ax.plot(angles, v, linewidth=2, label=loc)
+    ax.fill(angles, v, alpha=0.15)
 
-    st.pyplot(fig)
+ax.set_xticks(angles[:-1])
+ax.set_xticklabels(categories, fontsize=10)
+
+# Hapus skala radial (tick labels di lingkaran)
+ax.set_yticks([])
+
+# Atur limit radial tetap 0–1 supaya proporsi relative
+ax.set_ylim(0, 1)
+
+plt.title("Radar Chart Perbandingan Kriteria Lokasi", size=14, pad=20)
+ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
+
+st.pyplot(fig)
