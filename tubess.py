@@ -397,49 +397,47 @@ if st.button("Tampilkan Rekomendasi"):
 # ============================================================
 # 6. RADAR CHART (SPIDER CHART) — Bahasa Indonesia
 # ============================================================
-top3 = df.nlargest(3, "final_score")
+    st.subheader("🕸️ Radar Chart Perbandingan Kriteria (Top 3)")
 
-st.subheader("🕸️ Radar Chart Perbandingan Kriteria (Top 3)")
+    categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
 
-categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
+    values = []
+    for _, row in top3.iterrows():
+        # Balik flood supaya low = rendah, high = tinggi di chart
+        flood_risk_score = 1 - row["flood_score"]
 
-values = []
-for _, row in top3.iterrows():
-    # Ambil skor seperti biasa
-    price = row["price_score"]
-    crowd = row["crowd_score"]
-    prox = row["prox_score"]
-    rth = row["rth_score"]
-    # Untuk flood, ubah jadi "resiko" = 1 - skor flood, sehingga low risk = nilai rendah
-    flood_risk_score = 1.0 - row["flood_score"]
+        values.append([
+            row["price_score"],
+            flood_risk_score,
+            row["crowd_score"],
+            row["prox_score"],
+            row["rth_score"]
+        ])
 
-    values.append([price, flood_risk_score, crowd, prox, rth])
+    num_vars = len(categories)
 
-num_vars = len(categories)
+    fig = plt.figure(figsize=(6, 6))
+    ax = plt.subplot(111, polar=True)
 
-fig = plt.figure(figsize=(6, 6))
-ax = plt.subplot(111, polar=True)
+    angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False).tolist()
+    angles += angles[:1]
 
-angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
-angles += angles[:1]
+    for i, loc in enumerate(top3["name"]):
+        v = values[i]
+        v = v + v[:1]   # tutup loop
+        ax.plot(angles, v, linewidth=2, label=loc)
+        ax.fill(angles, v, alpha=0.15)
 
-for i, loc in enumerate(top3["name"]):
-    v = values[i]
-    v = list(v) + [v[0]]  # tutup loop
-    ax.plot(angles, v, linewidth=2, label=loc)
-    ax.fill(angles, v, alpha=0.15)
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(categories, fontsize=10)
 
-ax.set_xticks(angles[:-1])
-ax.set_xticklabels(categories, fontsize=10)
+    # Hilangkan angka-angka radial
+    ax.set_yticks([])
 
-# Hapus skala radial (tick labels di lingkaran)
-ax.set_yticks([])
+    # Tetapkan skala 0-1
+    ax.set_ylim(0, 1)
 
-# Atur limit radial tetap 0–1 supaya proporsi relative
-ax.set_ylim(0, 1)
+    plt.title("Perbandingan Kriteria Lokasi (Radar Chart)", size=14, pad=20)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
-plt.title("Radar Chart Perbandingan Kriteria Lokasi", size=14, pad=20)
-ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
-
-st.pyplot(fig)
-
+    st.pyplot(fig)
