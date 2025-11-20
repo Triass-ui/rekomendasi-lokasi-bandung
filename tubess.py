@@ -114,42 +114,13 @@ def compute_scores(df):
     return df2.sort_values("score", ascending=False)
 
 # ============================================================
-# UTIL: sanitize & flexible image path
+# UTIL: sanitize nama file
 # ============================================================
 def sanitize_filename(name):
-    # lower, replace spaces with underscore, remove non-alnum/underscore
-    s = name.lower().strip()
-    s = s.replace(" ", "_")
+    # lower, remove spaces, keep alnum and underscore
+    s = name.lower().replace(" ", "_")
     s = re.sub(r'[^a-z0-9_]', '', s)
     return s + ".jpg"
-
-def possible_image_paths(name):
-    """Return list of candidate image paths to try (most likely first)."""
-    candidates = []
-    # sanitized with underscore
-    candidates.append(os.path.join(BASE_DIR, sanitize_filename(name)))
-    # sanitized without underscore (remove spaces)
-    candidates.append(os.path.join(BASE_DIR, name.lower().replace(" ", "") + ".jpg"))
-    # original lowercase with spaces replaced by hyphen
-    candidates.append(os.path.join(BASE_DIR, name.lower().replace(" ", "-") + ".jpg"))
-    # fallback: original name as-is
-    candidates.append(os.path.join(BASE_DIR, name + ".jpg"))
-    # also try in static/images/lokasi subfolder if user placed there
-    for p in list(candidates):
-        dirpath = os.path.join(BASE_DIR, "static", "images", "lokasi")
-        candidates.append(os.path.join(dirpath, os.path.basename(p)))
-    # keep unique and existing order
-    unique = []
-    for c in candidates:
-        if c not in unique:
-            unique.append(c)
-    return unique
-
-def find_existing_image(name):
-    for p in possible_image_paths(name):
-        if os.path.exists(p):
-            return p
-    return None
 
 # ============================================================
 # 3. STREAMLIT UI
@@ -180,20 +151,6 @@ max_loc = len(df)
 
 # jumlah_rekom: min=1, max=max_loc, default=min(10, max_loc)
 jumlah_rekom = st.number_input("🔢 Jumlah lokasi yang ingin dianalisis:", min_value=1, max_value=max_loc, value=min(10, max_loc), step=1)
-
-# ---------------------------
-# Tampilkan bobot ke user sebelum tombol
-# ---------------------------
-st.markdown("### 📘 Bobot Penilaian Lokasi")
-st.markdown("""
-- **Harga tanah:** 40% (semakin murah → skor lebih tinggi)  
-- **Risiko banjir:** 30% (rendah → skor lebih tinggi)  
-- **Tingkat keramaian:** 15% (low → skor lebih tinggi)  
-- **Akses fasilitas publik:** 10% (high → skor lebih tinggi)  
-- **RTH:** 5% (persentase RTH lebih besar → skor lebih tinggi)  
-""")
-
-st.caption("Penjelasan: skor akhir dihitung dengan menggabungkan kelima kriteria di atas sesuai bobot. Grafik menampilkan skor akhir dalam persen (0–100%).")
 
 # ============================================================
 # KETIKA TOMBOL DIKLIK
@@ -244,39 +201,15 @@ if st.button("Tampilkan Rekomendasi"):
     # ============================================================
     st.subheader("🏆 3 Rekomendasi Lokasi Terbaik")
 
-    # Optional: database manual kelebihan/kekurangan per kecamatan
-    informasi_lokasi = {
-        "arcamanik": {
-            "kelebihan": ["Akses jalan mudah", "Harga relatif terjangkau"],
-            "kekurangan": ["Beberapa titik rawan banjir saat hujan lebat"]
-        },
-        "rancasari": {
-            "kelebihan": ["Lingkungan tenang", "Dekat fasilitas umum"],
-            "kekurangan": ["Harga sedikit lebih tinggi"]
-        },
-        "panyileukan": {
-            "kelebihan": ["Lingkungan relatif tenang", "Harga kompetitif"],
-            "kekurangan": ["Akses ke pusat kota sedikit lebih jauh"]
-        },
-        "mandalajati": {
-            "kelebihan": ["Akses transportasi baik", "Banyak fasilitas sekitar"],
-            "kekurangan": ["Area padat pada jam sibuk"]
-        },
-        "cidadap": {
-            "kelebihan": ["Udara sejuk, lingkungan hijau", "RTH luas"],
-            "kekurangan": ["Beberapa area aksesnya tidak terlalu cepat"]
-        }
-        # tambahkan pilihan lain sesuai datasetmu
-    }
-
     for i, row in top3.iterrows():
         st.markdown(f"### 📍 {row['name']}")
 
-        # --- GENERATE PATH GAMBAR (coba beberapa kemungkinan) ---
-        img_path = find_existing_image(row["name"])
+        # --- GENERATE PATH GAMBAR ---
+        img_file = sanitize_filename(row["name"])
+        img_path = os.path.join(BASE_DIR, img_file)
 
         # --- TAMPILKAN GAMBAR ---
-        if img_path:
+        if os.path.exists(img_path):
             st.image(img_path, width=300)
         else:
             # fallback khusus untuk Cidadap (atau lainnya kalau mau)
@@ -299,9 +232,8 @@ if st.button("Tampilkan Rekomendasi"):
         st.write(f"- **RTH:** {row['rth_percent']:.0f}%")
 
         # =====================================================
-        # KELEBIHAN & KEKURANGAN (pastikan selalu ada)
+        # KELEBIHAN & KEKURANGAN
         # =====================================================
-        # pertama: dari logika scoring (dinamis)
         advantages = []
         disadvantages = []
 
@@ -330,36 +262,17 @@ if st.button("Tampilkan Rekomendasi"):
         else:
             disadvantages.append("Harga cenderung mahal.")
 
-        # kedua: tambahkan insight manual (jika tersedia) untuk melengkapi
-        key = row["name"].strip().lower().replace(" ", "").replace("-", "")
-        if key in informasi_lokasi:
-            info = informasi_lokasi[key]
-            # gabungkan (hindari duplikat)
-            for x in info.get("kelebihan", []):
-                if x not in advantages:
-                    advantages.append(x)
-            for x in info.get("kekurangan", []):
-                if x not in disadvantages:
-                    disadvantages.append(x)
-
-        # tampilkan
         st.markdown("### 🟢 Kelebihan:")
-        if advantages:
-            for a in advantages:
-                st.markdown(f"- {a}")
-        else:
-            st.markdown("- (Tidak ada catatan kelebihan spesifik.)")
+        for a in advantages:
+            st.markdown(f"- {a}")
 
         st.markdown("### 🔴 Kekurangan:")
-        if disadvantages:
-            for d in disadvantages:
-                st.markdown(f"- {d}")
-        else:
-            st.markdown("- (Tidak ada catatan kekurangan spesifik.)")
+        for d in disadvantages:
+            st.markdown(f"- {d}")
 
         st.markdown("---")
 
-    # ============================================================
+       # ============================================================
     # 5. GRAFIK BAR — Perbandingan Skor Total
     # ============================================================
     st.subheader("📊 Perbandingan Antar Kecamatan (Top 3)")
@@ -372,76 +285,67 @@ if st.button("Tampilkan Rekomendasi"):
 
     ax.set_ylim(0, 100)
     ax.set_ylabel("(%)")
-    ax.set_title("Skor Total Lokasi (dalam %) — Semakin tinggi semakin direkomendasikan")
 
-    # Annotate with one decimal and include mini legend text on plot
-    for bar, h in zip(bars, scores_pct):
-        ax.annotate(f"{h:.1f}%", xy=(bar.get_x() + bar.get_width() / 2, h),
-                    xytext=(0, 6), textcoords="offset points", ha="center")
+    for bar in bars:
+        h = bar.get_height()
+        ax.annotate(
+            f"{h:.0f}%",
+            xy=(bar.get_x() + bar.get_width() / 2, h),
+            xytext=(0, 6),
+            textcoords="offset points",
+            ha="center"
+        )
 
     st.pyplot(fig)
 
-    # Tampilkan keterangan bobot tepat di bawah grafik (agar jelas)
-    st.markdown("**Keterangan skor:** Skor akhir dihitung dari kombinasi kriteria berikut dengan bobot:")
-    st.markdown("- **Harga tanah:** 40%  \n- **Risiko banjir:** 30%  \n- **Tingkat keramaian:** 15%  \n- **Akses fasilitas publik:** 10%  \n- **RTH:** 5%")
-    st.caption("Contoh interpretasi: Nilai 78% artinya lokasi memperoleh skor total 0.78 berdasarkan bobot di atas.")
-
     # ============================================================
-    # 6. RADAR CHART (SPIDER CHART) — Bahasa Indonesia
+    # 6. RADAR CHART (SPIDER CHART)
     # ============================================================
-   # =====================
+    # =====================
 #  BAGIAN SPIDER CHART
 # =====================
 
-# ============================================================
-# 6. RADAR CHART (SPIDER CHART) — Bahasa Indonesia (FIXED)
-# ============================================================
-st.subheader("🕸️ Radar Chart Perbandingan Kriteria (Top 3)")
+st.subheader("Radar Chart (Spider Chart)")
 
-# Label Bahasa Indonesia
-categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
+selected_loc = st.selectbox("Pilih lokasi:", df["Lokasi"])
+row = df[df["Lokasi"] == selected_loc].iloc[0]
 
-# Ambil nilai (0..1) dari top3 yang sudah dihitung: price_score, flood_score, crowd_score, prox_score, rth_score
-values = []
-for _, r in top3.iterrows():
-    values.append([
-        float(r["price_score"]),
-        float(r["flood_score"]),
-        float(r["crowd_score"]),
-        float(r["prox_score"]),
-        float(r["rth_score"])
-    ])
+# Mapping agar tidak terbalik
+mapping = {
+    "low": 1,
+    "medium": 2,
+    "high": 3
+}
 
-num_vars = len(categories)
+# Pastikan nilai sudah sesuai mapping
+vals = [
+    mapping[row["Banjir"]],
+    mapping[row["Kemacetan"]],
+    mapping[row["Akses Kesehatan"]],
+    mapping[row["Keamanan"]],
+    mapping[row["Lingkungan"]]
+]
 
-fig = plt.figure(figsize=(6, 6))
-ax = plt.subplot(111, polar=True)
+labels = ["Banjir", "Kemacetan", "Kesehatan", "Keamanan", "Lingkungan"]
 
-# sudut tiap axis
-angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
-angles += angles[:1]  # tutup lingkaran
+# Tutup lingkaran
+vals += vals[:1]
 
-# plot tiap lokasi
-for i, nama in enumerate(top3["name"]):
-    v = values[i] + values[i][:1]  # tutup data
-    ax.plot(angles, v, linewidth=2, label=nama)
-    ax.fill(angles, v, alpha=0.15)
+angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False)
+angles = np.concatenate((angles, [angles[0]]))
 
-# set label kategori (Bahasa Indonesia)
+fig = plt.figure(figsize=(5, 5))
+ax = fig.add_subplot(111, polar=True)
+
+# Hilangkan angka / scale
+ax.set_yticklabels([])
+
+# Plot data
+ax.plot(angles, vals, linewidth=2)
+ax.fill(angles, vals, alpha=0.25)
+
+# Set label kategori
 ax.set_xticks(angles[:-1])
-ax.set_xticklabels(categories, fontsize=10)
-
-# sembunyikan angka/label skala pada sumbu radial
-ax.set_yticklabels([])           # sembunyikan teks
-ax.yaxis.set_ticks([])          # hilangkan ticks
-
-# tetap atur range supaya 0..1
-ax.set_ylim(0, 1)
-
-plt.title("Radar Chart Perbandingan Kriteria Lokasi", size=14, pad=20)
-ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
+ax.set_xticklabels(labels)
 
 st.pyplot(fig)
-
-
-
