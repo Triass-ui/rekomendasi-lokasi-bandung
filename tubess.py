@@ -272,8 +272,7 @@ if st.button("Tampilkan Rekomendasi"):
 
         st.markdown("---")
 
-    # ============================================================
-    # 5. GRAFIK
+  # 5. GRAFIK BAR — Perbandingan Skor Total
     # ============================================================
     st.subheader("📊 Perbandingan Antar Kecamatan (Top 3)")
 
@@ -297,4 +296,46 @@ if st.button("Tampilkan Rekomendasi"):
         )
 
     st.pyplot(fig)
+
+    # ============================================================
+    # 6. RADAR CHART (SPIDER CHART)
+    # ============================================================
+    st.subheader("🕸️ Radar Chart Perbandingan Kriteria (Top 3)")
+
+    categories = ["Price", "Flood", "Crowd", "Proximity", "RTH"]
+
+    values = []
+    for _, row in top3.iterrows():
+        values.append([
+            row["price_score"],
+            row["flood_score"],
+            row["crowd_score"],
+            row["prox_score"],
+            row["rth_score"]
+        ])
+
+    num_vars = len(categories)
+
+    fig = plt.figure(figsize=(6, 6))
+    ax = plt.subplot(111, polar=True)
+
+    angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False).tolist()
+    angles += angles[:1]
+
+    for i, loc in enumerate(top3["name"]):
+        v = values[i]
+        v += v[:1]
+        ax.plot(angles, v, linewidth=2, label=loc)
+        ax.fill(angles, v, alpha=0.15)
+
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(categories)
+
+    ax.set_ylim(0, 1)
+
+    plt.title("Radar Comparison of Top 3 Locations", size=14, pad=20)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
+
+    st.pyplot(fig)
+
 
