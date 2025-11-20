@@ -393,49 +393,55 @@ if st.button("Tampilkan Rekomendasi"):
 #  BAGIAN SPIDER CHART
 # =====================
 
-st.subheader("Radar Chart (Spider Chart)")
+# ============================================================
+# 6. RADAR CHART (SPIDER CHART) — Bahasa Indonesia (FIXED)
+# ============================================================
+st.subheader("🕸️ Radar Chart Perbandingan Kriteria (Top 3)")
 
-selected_loc = st.selectbox("Pilih lokasi:", df["Lokasi"])
-row = df[df["Lokasi"] == selected_loc].iloc[0]
+# Label Bahasa Indonesia
+categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
 
-# Mapping agar tidak terbalik
-mapping = {
-    "low": 1,
-    "medium": 2,
-    "high": 3
-}
+# Ambil nilai (0..1) dari top3 yang sudah dihitung: price_score, flood_score, crowd_score, prox_score, rth_score
+values = []
+for _, r in top3.iterrows():
+    values.append([
+        float(r["price_score"]),
+        float(r["flood_score"]),
+        float(r["crowd_score"]),
+        float(r["prox_score"]),
+        float(r["rth_score"])
+    ])
 
-# Pastikan nilai sudah sesuai mapping
-vals = [
-    mapping[row["Banjir"]],
-    mapping[row["Kemacetan"]],
-    mapping[row["Akses Kesehatan"]],
-    mapping[row["Keamanan"]],
-    mapping[row["Lingkungan"]]
-]
+num_vars = len(categories)
 
-labels = ["Banjir", "Kemacetan", "Kesehatan", "Keamanan", "Lingkungan"]
+fig = plt.figure(figsize=(6, 6))
+ax = plt.subplot(111, polar=True)
 
-# Tutup lingkaran
-vals += vals[:1]
+# sudut tiap axis
+angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+angles += angles[:1]  # tutup lingkaran
 
-angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False)
-angles = np.concatenate((angles, [angles[0]]))
+# plot tiap lokasi
+for i, nama in enumerate(top3["name"]):
+    v = values[i] + values[i][:1]  # tutup data
+    ax.plot(angles, v, linewidth=2, label=nama)
+    ax.fill(angles, v, alpha=0.15)
 
-fig = plt.figure(figsize=(5, 5))
-ax = fig.add_subplot(111, polar=True)
-
-# Hilangkan angka / scale
-ax.set_yticklabels([])
-
-# Plot data
-ax.plot(angles, vals, linewidth=2)
-ax.fill(angles, vals, alpha=0.25)
-
-# Set label kategori
+# set label kategori (Bahasa Indonesia)
 ax.set_xticks(angles[:-1])
-ax.set_xticklabels(labels)
+ax.set_xticklabels(categories, fontsize=10)
+
+# sembunyikan angka/label skala pada sumbu radial
+ax.set_yticklabels([])           # sembunyikan teks
+ax.yaxis.set_ticks([])          # hilangkan ticks
+
+# tetap atur range supaya 0..1
+ax.set_ylim(0, 1)
+
+plt.title("Radar Chart Perbandingan Kriteria Lokasi", size=14, pad=20)
+ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
 st.pyplot(fig)
+
 
 
