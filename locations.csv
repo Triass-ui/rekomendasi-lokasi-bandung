@@ -1,0 +1,11 @@
+id,Nama,Harga_per_m2,Resiko_Banjir,Tingkat_Keramaian,Persentase_RTH,Lokasi_Strategis
+1,Antapani,9500000,medium,high,18%,high
+2,Arcamanik,7800000,low,medium,30%,medium
+3,Ujung Berung,6500000,low,low,36%,medium
+4,Sukajadi,12000000,high,high,10%,high
+5,Cidadap,15000000,low,low,40%,low
+6,Cicendo,11000000,medium,high,12%,high
+7,Lengkong,9000000,medium,medium,20%,high
+8,Buah Batu,8300000,medium,high,22%,medium
+9,Cibeunying Kaler,10500000,low,medium,25%,high
+10,Bojongloa Kidul,7000000,high,medium,15%,medium
