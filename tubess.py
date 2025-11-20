@@ -3,17 +3,22 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import re
+
+# ============================================================
+# PATH BASE
+# ============================================================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ============================================================
 # 1. LOAD DATA + NORMALISASI
 # ============================================================
 
 def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
-
-    if os.path.exists(path_xlsx):
-        df = pd.read_excel(path_xlsx)
-    elif os.path.exists(path_csv):
-        df = pd.read_csv(path_csv)
+    if os.path.exists(os.path.join(BASE_DIR, path_xlsx)):
+        df = pd.read_excel(os.path.join(BASE_DIR, path_xlsx))
+    elif os.path.exists(os.path.join(BASE_DIR, path_csv)):
+        df = pd.read_csv(os.path.join(BASE_DIR, path_csv))
     else:
         st.error("File locations.xlsx atau locations.csv tidak ditemukan.")
         st.stop()
@@ -33,7 +38,7 @@ def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
     required = ["name", "price_per_m2", "flood_risk", "crowd_level", "rth_percent", "proximity_public"]
     missing = [r for r in required if r not in df.columns]
     if missing:
-        st.error(f"Kolom berikut hilang di file Excel: {missing}")
+        st.error(f"Kolom berikut hilang di file Excel/CSV: {missing}")
         st.stop()
 
     ind_to_en = {
@@ -42,7 +47,8 @@ def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
     }
 
     def map_ind(val):
-        if pd.isna(val): return "medium"
+        if pd.isna(val):
+            return "medium"
         v = str(val).strip().lower()
         return ind_to_en.get(v, "medium")
 
@@ -50,6 +56,7 @@ def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
     df["crowd_level"] = df["crowd_level"].apply(map_ind)
     df["proximity_public"] = df["proximity_public"].apply(map_ind)
 
+    # handle price: if original is in juta (column name suggests juta), convert to actual IDR
     df["price_per_m2_million"] = pd.to_numeric(df["price_per_m2"], errors="coerce").fillna(0)
     df["price_per_m2"] = df["price_per_m2_million"] * 1_000_000
 
@@ -57,17 +64,15 @@ def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
 
     return df
 
-
 # ============================================================
 # 2. SCORING
 # ============================================================
-
 FLOOD_MAP = {"low": 1.0, "medium": 0.5, "high": 0.0}
 CROWD_MAP = {"low": 1.0, "medium": 0.5, "high": 0.0}
 PROX_MAP  = {"low": 0.0, "medium": 0.5, "high": 1.0}
 
 def normalize_price_scores(df):
-    prices = df["price_per_m2"].values
+    prices = df["price_per_m2"].values.astype(float)
     mn, mx = prices.min(), prices.max()
     if mn == mx:
         return np.ones_like(prices)
@@ -75,12 +80,15 @@ def normalize_price_scores(df):
 
 def compute_scores(df):
     price_scores = normalize_price_scores(df)
-    flood_scores = df["flood_risk"].map(FLOOD_MAP).fillna(0.5)
-    crowd_scores = df["crowd_level"].map(CROWD_MAP).fillna(0.5)
-    prox_scores  = df["proximity_public"].map(PROX_MAP).fillna(0.5)
+    flood_scores = df["flood_risk"].map(FLOOD_MAP).fillna(0.5).values
+    crowd_scores = df["crowd_level"].map(CROWD_MAP).fillna(0.5).values
+    prox_scores  = df["proximity_public"].map(PROX_MAP).fillna(0.5).values
 
-    r = df["rth_percent"].values
-    rth_scores = (r - r.min()) / (r.max() - r.min()) if r.max() != r.min() else np.ones_like(r)
+    r = df["rth_percent"].values.astype(float)
+    if r.max() != r.min():
+        rth_scores = (r - r.min()) / (r.max() - r.min())
+    else:
+        rth_scores = np.ones_like(r)
 
     weights = {
         "price": 0.40, "flood": 0.30, "crowd": 0.15,
@@ -105,11 +113,18 @@ def compute_scores(df):
 
     return df2.sort_values("score", ascending=False)
 
+# ============================================================
+# UTIL: sanitize nama file
+# ============================================================
+def sanitize_filename(name):
+    # lower, remove spaces, keep alnum and underscore
+    s = name.lower().replace(" ", "_")
+    s = re.sub(r'[^a-z0-9_]', '', s)
+    return s + ".jpg"
 
 # ============================================================
 # 3. STREAMLIT UI
 # ============================================================
-
 st.set_page_config(layout="wide")
 st.title("🏡 Rekomendasi Pembelian Tanah di Kota Bandung")
 st.markdown("""
@@ -126,24 +141,21 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-
-
-budget_miliar = st.number_input("💰 Masukkan Budget (dalam MILIAR)", min_value=0.1, step=0.1)
+budget_miliar = st.number_input("💰 Masukkan Budget (dalam MILIAR)", min_value=0.1, step=0.1, value=1.0)
 budget = budget_miliar * 1_000_000_000
 
-luas = st.number_input("📏 Masukkan Luas Tanah (m²)", min_value=20, step=5)
+luas = st.number_input("📏 Masukkan Luas Tanah (m²)", min_value=20, step=5, value=100)
 
 df = read_locations()
 max_loc = len(df)
 
-jumlah_rekom = st.number_input("🔢 Jumlah lokasi yang ingin dianalisis:", 3, max_loc, min(10, max_loc))
+# jumlah_rekom: min=1, max=max_loc, default=min(10, max_loc)
+jumlah_rekom = st.number_input("🔢 Jumlah lokasi yang ingin dianalisis:", min_value=1, max_value=max_loc, value=min(10, max_loc), step=1)
 
 # ============================================================
 # KETIKA TOMBOL DIKLIK
 # ============================================================
-
 if st.button("Tampilkan Rekomendasi"):
-
     scored = compute_scores(df)
     scored["total_price"] = scored["price_per_m2"] * luas
 
@@ -187,42 +199,41 @@ if st.button("Tampilkan Rekomendasi"):
     # ============================================================
     # 4. REKOMENDASI TOP 3
     # ============================================================
+    st.subheader("🏆 3 Rekomendasi Lokasi Terbaik")
 
-   st.subheader("🏆 3 Rekomendasi Lokasi Terbaik")
+    for i, row in top3.iterrows():
+        st.markdown(f"### 📍 {row['name']}")
 
-for i, row in top3.iterrows():
-    st.markdown(f"### 📍 {row['name']}")
+        # --- GENERATE PATH GAMBAR ---
+        img_file = sanitize_filename(row["name"])
+        img_path = os.path.join(BASE_DIR, img_file)
 
-    # --- GENERATE PATH GAMBAR ---
-    img_file = row["name"].lower().replace(" ", "") + ".jpg"
-    img_path = os.path.join(BASE_DIR, img_file)
-
-    # --- TAMPILKAN GAMBAR ---
-    if os.path.exists(img_path):
-        st.image(img_path, use_column_width=True)
-    else:
-        if row["name"].lower() == "cidadap":
-            st.markdown("""
-            **📘 Deskripsi Lokasi Cidadap (Foto tidak tersedia)**  
-            - 60% wilayah berupa dataran datar hingga berombak  
-            - Ketinggian sekitar 750 mdpl  
-            - Suhu harian 19°C – 28°C    
-            """)
+        # --- TAMPILKAN GAMBAR ---
+        if os.path.exists(img_path):
+            st.image(img_path, use_column_width=True)
         else:
-            st.info("Foto lokasi belum tersedia.")
+            # fallback khusus untuk Cidadap (atau lainnya kalau mau)
+            if row["name"].strip().lower() == "cidadap":
+                st.markdown("""
+                **📘 Deskripsi Lokasi Cidadap (Foto tidak tersedia)**  
+                - 60% wilayah berupa dataran datar hingga berombak  
+                - Ketinggian sekitar 750 mdpl  
+                - Suhu harian 19°C – 28°C    
+                """)
+            else:
+                st.info("Foto lokasi belum tersedia.")
 
-    # --- DETAIL INFORMASI ---
-    st.write(f"- **Harga per m²:** {row['price_per_m2_million']:.0f} juta/m²")
-    st.write(f"- **Harga total:** {format_total_price(row['total_price'])}")
-    st.write(f"- **Risiko banjir:** {row['flood_risk']}")
-    st.write(f"- **Tingkat keramaian:** {row['crowd_level']}")
-    st.write(f"- **Akses fasilitas publik:** {row['proximity_public']}")
-    st.write(f"- **RTH:** {row['rth_percent']:.0f}%")
+        # --- DETAIL INFORMASI ---
+        st.write(f"- **Harga per m²:** {row['price_per_m2_million']:.0f} juta/m²")
+        st.write(f"- **Harga total:** {format_total_price(row['total_price'])}")
+        st.write(f"- **Risiko banjir:** {row['flood_risk']}")
+        st.write(f"- **Tingkat keramaian:** {row['crowd_level']}")
+        st.write(f"- **Akses fasilitas publik:** {row['proximity_public']}")
+        st.write(f"- **RTH:** {row['rth_percent']:.0f}%")
 
         # =====================================================
         # KELEBIHAN & KEKURANGAN
         # =====================================================
-
         advantages = []
         disadvantages = []
 
@@ -246,7 +257,7 @@ for i, row in top3.iterrows():
         elif row["rth_percent"] < 15:
             disadvantages.append("RTH rendah — potensi area padat.")
 
-        if row["price_score"] > 0.6:
+        if row.get("price_score", 0) > 0.6:
             advantages.append("Harga relatif murah dibanding kecamatan lain.")
         else:
             disadvantages.append("Harga cenderung mahal.")
@@ -264,16 +275,13 @@ for i, row in top3.iterrows():
     # ============================================================
     # 5. GRAFIK
     # ============================================================
-
     st.subheader("📊 Perbandingan Antar Kecamatan (Top 3)")
 
     labels = top3["name"].tolist()
     scores_pct = (top3["score"].values * 100).round(1)
 
-    colors = ["#e74c3c", "#3498db", "#2ecc71"]
-
     fig, ax = plt.subplots(figsize=(8, 4))
-    bars = ax.bar(labels, scores_pct, color=colors[:len(labels)], width=0.5)
+    bars = ax.bar(labels, scores_pct, width=0.5)
 
     ax.set_ylim(0, 100)
     ax.set_ylabel("(%)")
@@ -289,4 +297,3 @@ for i, row in top3.iterrows():
         )
 
     st.pyplot(fig)
-
