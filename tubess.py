@@ -365,7 +365,7 @@ if st.button("Tampilkan Rekomendasi"):
 
     num_vars = len(categories)
 
-    fig = plt.figure(figsize=(6, 6))
+    fig = plt.figure(figsize=(4.3, 4.3))
     ax = plt.subplot(111, polar=True)
 
     angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False).tolist()
@@ -386,3 +386,4 @@ if st.button("Tampilkan Rekomendasi"):
     ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
     st.pyplot(fig)
+
