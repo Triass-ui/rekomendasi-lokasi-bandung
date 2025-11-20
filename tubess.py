@@ -377,7 +377,7 @@ if st.button("Tampilkan Rekomendasi"):
         ax.fill(angles, v, alpha=0.15)
 
     ax.set_xticks(angles[:-1])
-    ax.set_xticklabels(categories, fontsize=5)
+    ax.set_xticklabels(categories, fontsize=8)
     ax.set_yticks([])
     ax.set_ylim(0, 1)
 
@@ -385,3 +385,4 @@ if st.button("Tampilkan Rekomendasi"):
     ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1), fontsize=4)
 
     st.pyplot(fig)
+
