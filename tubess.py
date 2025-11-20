@@ -383,7 +383,7 @@ if st.button("Tampilkan Rekomendasi"):
 
     # Tampilkan keterangan bobot tepat di bawah grafik (agar jelas)
     st.markdown("**Keterangan skor:** Skor akhir dihitung dari kombinasi kriteria berikut dengan bobot:")
-    st.markdown("- **Harga tanah:** 40%  
+    st.markdown("- **Harga tanah:** 40%"):** 40%  
 - **Risiko banjir:** 30%  
 - **Tingkat keramaian:** 15%  
 - **Akses fasilitas publik:** 10%  
