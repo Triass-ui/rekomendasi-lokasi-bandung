@@ -188,34 +188,36 @@ if st.button("Tampilkan Rekomendasi"):
     # 4. REKOMENDASI TOP 3
     # ============================================================
 
-    st.subheader("🏆 3 Rekomendasi Lokasi Terbaik")
+   st.subheader("🏆 3 Rekomendasi Lokasi Terbaik")
 
-    for i, row in top3.iterrows():
-        st.markdown(f"### 📍 {row['name']}")
+for i, row in top3.iterrows():
+    st.markdown(f"### 📍 {row['name']}")
 
-        img_path = f"static/images/lokasi/{row['name'].lower().replace(' ', '_')}.jpg"
+    # --- GENERATE PATH GAMBAR ---
+    img_file = row["name"].lower().replace(" ", "") + ".jpg"
+    img_path = os.path.join(BASE_DIR, img_file)
 
-        if os.path.exists(img_path):
-            st.image(img_path, width=400)
-
-
+    # --- TAMPILKAN GAMBAR ---
+    if os.path.exists(img_path):
+        st.image(img_path, use_column_width=True)
+    else:
+        if row["name"].lower() == "cidadap":
+            st.markdown("""
+            **📘 Deskripsi Lokasi Cidadap (Foto tidak tersedia)**  
+            - 60% wilayah berupa dataran datar hingga berombak  
+            - Ketinggian sekitar 750 mdpl  
+            - Suhu harian 19°C – 28°C    
+            """)
         else:
-            if row["name"].lower() == "cidadap":
-                st.markdown("""
-                **📘 Deskripsi Lokasi Cidadap (Foto tidak tersedia)**  
-                - 60% wilayah berupa dataran datar hingga berombak  
-                - Ketinggian sekitar 750 mdpl  
-                - Suhu harian 19°C – 28°C    
-                """)
-            else:
-                st.info("Foto lokasi belum tersedia.")
+            st.info("Foto lokasi belum tersedia.")
 
-        st.write(f"- **Harga per m²:** {row['price_per_m2_million']:.0f} juta/m²")
-        st.write(f"- **Harga total:** {format_total_price(row['total_price'])}")
-        st.write(f"- **Risiko banjir:** {row['flood_risk']}")
-        st.write(f"- **Tingkat keramaian:** {row['crowd_level']}")
-        st.write(f"- **Akses fasilitas publik:** {row['proximity_public']}")
-        st.write(f"- **RTH:** {row['rth_percent']:.0f}%")
+    # --- DETAIL INFORMASI ---
+    st.write(f"- **Harga per m²:** {row['price_per_m2_million']:.0f} juta/m²")
+    st.write(f"- **Harga total:** {format_total_price(row['total_price'])}")
+    st.write(f"- **Risiko banjir:** {row['flood_risk']}")
+    st.write(f"- **Tingkat keramaian:** {row['crowd_level']}")
+    st.write(f"- **Akses fasilitas publik:** {row['proximity_public']}")
+    st.write(f"- **RTH:** {row['rth_percent']:.0f}%")
 
         # =====================================================
         # KELEBIHAN & KEKURANGAN
@@ -287,3 +289,4 @@ if st.button("Tampilkan Rekomendasi"):
         )
 
     st.pyplot(fig)
+
