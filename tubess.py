@@ -241,7 +241,7 @@ if st.button("Tampilkan Rekomendasi"):
         st.markdown(f"### 📍 {row['name']}")
         img_path = find_existing_image(row["name"])
         if img_path:
-            st.image(img_path, width=300)
+            st.image(img_path, width=400)
         else:
             if row["name"].strip().lower() == "cidadap":
                 st.markdown("""
@@ -385,5 +385,6 @@ if st.button("Tampilkan Rekomendasi"):
     ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1), fontsize=4)
 
     st.pyplot(fig)
+
 
 
