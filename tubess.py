@@ -347,7 +347,10 @@ if st.button("Tampilkan Rekomendasi"):
 
 # 6. RADAR CHART (SPIDER CHART)
 
-    st.subheader("Radar Chart Perbandingan Kriteria (Top 3)")
+    st.markdown(
+    "<h3 style='text-align: center;'>🕸️ Radar Chart Perbandingan Kriteria (Top 3)</h3>",
+    unsafe_allow_html=True
+)
 
     categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
 
@@ -386,6 +389,7 @@ if st.button("Tampilkan Rekomendasi"):
     ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1), fontsize=4)
 
     st.pyplot(fig)
+
 
 
 
