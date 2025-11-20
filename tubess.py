@@ -68,7 +68,7 @@ def read_locations(path_xlsx="locations.xlsx", path_csv="locations.csv"):
 # 2. SCORING
 # ============================================================
 FLOOD_MAP = {"low": 1.0, "medium": 0.5, "high": 0.0}
-CROWD_MAP = {"low": 1.0, "medium": 0.5, "high": 0.0}
+CROWD_MAP = {"low": 0.0, "medium": 0.5, "high": 1.0}
 PROX_MAP  = {"low": 0.0, "medium": 0.5, "high": 1.0}
 
 def normalize_price_scores(df):
@@ -441,3 +441,4 @@ if st.button("Tampilkan Rekomendasi"):
     ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1))
 
     st.pyplot(fig)
+
