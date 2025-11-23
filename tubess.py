@@ -591,7 +591,7 @@ def main():
             st.caption("Contoh interpretasi: Nilai 78% artinya lokasi memperoleh skor total 0.78 berdasarkan bobot di atas.")
             
             # Radar Chart
-            st.subheader("🕸️ Radar Chart Perbandingan Kriteria (Top 3)")
+            st.subheader("Radar Chart Perbandingan Kriteria (Top 3)")
             
             categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
             
@@ -635,3 +635,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
