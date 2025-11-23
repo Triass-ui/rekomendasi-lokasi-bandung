@@ -327,40 +327,61 @@ def analyze_advantages_disadvantages(row: pd.Series) -> Tuple[List[str], List[st
     advantages = []
     disadvantages = []
     
-    # Analisis berdasarkan kriteria
+    # PRIORITAS 1: Analisis berdasarkan data DINAMIS (dari perhitungan)
+    
+    # Analisis HARGA (paling penting, bobot 40%)
+    price_score = row.get("price_score", 0)
+    if price_score > 0.7:
+        advantages.append("Harga sangat terjangkau dibanding lokasi lain.")
+    elif price_score > PRICE_SCORE_THRESHOLD:
+        advantages.append("Harga relatif murah dibanding kecamatan lain.")
+    elif price_score < 0.3:
+        disadvantages.append("Harga cenderung mahal.")
+    
+    # Analisis BANJIR (bobot 30%)
     if row["flood_risk"] == "low":
         advantages.append("Area ini memiliki risiko banjir yang rendah.")
     elif row["flood_risk"] == "high":
         disadvantages.append("Berpotensi terdampak banjir.")
     
+    # Analisis KERAMAIAN (bobot 15%)
     if row["crowd_level"] == "low":
         advantages.append("Lingkungan sekitar tenang.")
     elif row["crowd_level"] == "high":
         disadvantages.append("Keramaian area sekitar tinggi — kurang nyaman.")
     
+    # Analisis AKSES PUBLIK (bobot 10%)
     if row["proximity_public"] == "high":
         advantages.append("Dekat dengan fasilitas umum.")
     elif row["proximity_public"] == "low":
         disadvantages.append("Akses fasilitas umum terbatas.")
     
+    # Analisis RTH (bobot 5%)
     if row["rth_percent"] >= RTH_THRESHOLD_HIGH:
         advantages.append("RTH luas dan memadai.")
     elif row["rth_percent"] < RTH_THRESHOLD_LOW:
         disadvantages.append("RTH rendah — potensi area padat.")
     
-    if row.get("price_score", 0) > PRICE_SCORE_THRESHOLD:
-        advantages.append("Harga relatif murah dibanding kecamatan lain.")
-    else:
-        disadvantages.append("Harga cenderung mahal.")
-    
-    # Tambahkan informasi dari database
+    # PRIORITAS 2: Tambahkan info dari database (HANYA jika tidak kontradiksi)
     key = row["name"].strip().lower().replace(" ", "").replace("-", "")
     if key in LOCATION_INFO:
         info = LOCATION_INFO[key]
+        
+        # Filter kelebihan: jangan tambah jika sudah ada info harga dari analisis dinamis
         for adv in info.get("kelebihan", []):
+            # Skip jika berbicara tentang harga (sudah dihandle di atas)
+            if "harga" in adv.lower() or "murah" in adv.lower() or "mahal" in adv.lower():
+                continue
+            # Skip jika duplikat
             if adv not in advantages:
                 advantages.append(adv)
+        
+        # Filter kekurangan: jangan tambah jika kontradiksi dengan analisis dinamis
         for dis in info.get("kekurangan", []):
+            # Skip jika berbicara tentang harga (sudah dihandle di atas)
+            if "harga" in dis.lower() or "murah" in dis.lower() or "mahal" in dis.lower():
+                continue
+            # Skip jika duplikat
             if dis not in disadvantages:
                 disadvantages.append(dis)
     
