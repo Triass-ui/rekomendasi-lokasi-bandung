@@ -40,7 +40,6 @@ MIN_BUDGET_MILIAR = 0.1
 MAX_BUDGET_MILIAR = 1000.0
 MIN_LUAS = 20
 
-# Indonesian to English mapping
 IND_TO_EN = {
     "rendah": "low",
     "sedang": "medium",
@@ -51,7 +50,6 @@ IND_TO_EN = {
 }
 
 # ============ LOCATION INFORMATION ============
-# NOTE: Sebaiknya dipindahkan ke file CSV/JSON terpisah untuk maintenance lebih mudah
 LOCATION_INFO: Dict[str, Dict[str, List[str]]] = {
     "arcamanik": {
         "kelebihan": ["Akses jalan mudah", "Harga relatif terjangkau"],
@@ -144,7 +142,7 @@ def read_locations(path_xlsx: str = "locations.xlsx", path_csv: str = "locations
         logger.error(f"Missing columns: {missing}")
         st.stop()
     
-    # Map kategori Indonesia ke Inggris
+    # Map kategori
     def map_category(val) -> str:
         """Map kategori dengan safe default"""
         if pd.isna(val):
@@ -362,7 +360,7 @@ def analyze_advantages_disadvantages(row: pd.Series) -> Tuple[List[str], List[st
     elif row["rth_percent"] < RTH_THRESHOLD_LOW:
         disadvantages.append("RTH rendah — potensi area padat.")
     
-    # PRIORITAS 2: Tambahkan info dari database (HANYA jika tidak kontradiksi)
+    # PRIORITAS 2: Tambahkan info dari database
     key = row["name"].strip().lower().replace(" ", "").replace("-", "")
     if key in LOCATION_INFO:
         info = LOCATION_INFO[key]
@@ -635,4 +633,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
