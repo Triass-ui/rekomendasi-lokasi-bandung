@@ -215,8 +215,6 @@ def compute_scores(df: pd.DataFrame) -> pd.DataFrame:
         WEIGHTS["prox"] * prox_scores +
         WEIGHTS["rth"] * rth_scores
     )
-    
-    # Copy dataframe dan tambahkan skor
     df2 = df.copy()
     df2["score"] = final
     df2["price_score"] = price_scores
@@ -264,12 +262,8 @@ def possible_image_paths(name: str) -> List[str]:
     
     paths = []
     for base in base_names:
-        # Root directory
         paths.append(os.path.join(BASE_DIR, base))
-        # Static images directory
         paths.append(os.path.join(BASE_DIR, "static", "images", "lokasi", base))
-    
-    # Remove duplicates while preserving order
     return list(dict.fromkeys(paths))
 
 def find_existing_image(name: str) -> Optional[str]:
@@ -367,19 +361,15 @@ def analyze_advantages_disadvantages(row: pd.Series) -> Tuple[List[str], List[st
         
         # Filter kelebihan: jangan tambah jika sudah ada info harga dari analisis dinamis
         for adv in info.get("kelebihan", []):
-            # Skip jika berbicara tentang harga (sudah dihandle di atas)
             if "harga" in adv.lower() or "murah" in adv.lower() or "mahal" in adv.lower():
                 continue
-            # Skip jika duplikat
             if adv not in advantages:
                 advantages.append(adv)
         
         # Filter kekurangan: jangan tambah jika kontradiksi dengan analisis dinamis
         for dis in info.get("kekurangan", []):
-            # Skip jika berbicara tentang harga (sudah dihandle di atas)
             if "harga" in dis.lower() or "murah" in dis.lower() or "mahal" in dis.lower():
                 continue
-            # Skip jika duplikat
             if dis not in disadvantages:
                 disadvantages.append(dis)
     
@@ -485,7 +475,7 @@ def main():
             
             logger.info(f"✅ Ditemukan {len(affordable)} lokasi terjangkau")
             
-            # Prepare display table
+            # Display table
             display_tbl = topk[[
                 "name", "price_per_m2_million", "total_price",
                 "flood_risk", "crowd_level", "proximity_public",
@@ -633,5 +623,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
