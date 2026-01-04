@@ -21,7 +21,7 @@ BOBOT = {
     "keramaian": 0.15,
     "akses": 0.10,
     "rth": 0.05
-
+}
 
 # Konstanta pemetaan kategori
 PETA_BANJIR = {"low": 1.0, "medium": 0.5, "high": 0.0}
@@ -623,4 +623,3 @@ def utama():
 
 if __name__ == "__main__":
     utama()
-
