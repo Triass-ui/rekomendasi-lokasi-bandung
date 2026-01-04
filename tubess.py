@@ -7,40 +7,40 @@ import re
 import logging
 from typing import Dict, List, Optional, Tuple
 
-# Setup logging
+# Pengaturan logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ============ CONSTANTS ============
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ============ KONSTANTA ============
+DIREKTORI_DASAR = os.path.dirname(os.path.abspath(__file__))
 
-# Scoring weights
-WEIGHTS = {
-    "price": 0.40,
-    "flood": 0.30,
-    "crowd": 0.15,
-    "prox": 0.10,
+# Bobot penilaian
+BOBOT = {
+    "harga": 0.40,
+    "banjir": 0.30,
+    "keramaian": 0.15,
+    "akses": 0.10,
     "rth": 0.05
 }
 
-# Mapping constants
-FLOOD_MAP = {"low": 1.0, "medium": 0.5, "high": 0.0}
-CROWD_MAP = {"low": 0.0, "medium": 0.5, "high": 1.0}
-PROX_MAP = {"low": 0.0, "medium": 0.5, "high": 1.0}
+# Konstanta pemetaan kategori
+PETA_BANJIR = {"low": 1.0, "medium": 0.5, "high": 0.0}
+PETA_KERAMAIAN = {"low": 0.0, "medium": 0.5, "high": 1.0}
+PETA_AKSES = {"low": 0.0, "medium": 0.5, "high": 1.0}
 
-# RTH thresholds
-RTH_THRESHOLD_HIGH = 25
-RTH_THRESHOLD_LOW = 15
+# Ambang batas RTH
+AMBANG_RTH_TINGGI = 25
+AMBANG_RTH_RENDAH = 15
 
-# Price score threshold for advantages
-PRICE_SCORE_THRESHOLD = 0.6
+# Ambang batas skor harga untuk kelebihan
+AMBANG_SKOR_HARGA = 0.6
 
-# Budget limits
-MIN_BUDGET_MILIAR = 0.1
-MAX_BUDGET_MILIAR = 1000.0
-MIN_LUAS = 20
+# Batas budget
+BUDGET_MINIMAL_MILIAR = 0.1
+BUDGET_MAKSIMAL_MILIAR = 1000.0
+LUAS_MINIMAL = 20
 
-IND_TO_EN = {
+IND_KE_EN = {
     "rendah": "low",
     "sedang": "medium",
     "tinggi": "high",
@@ -49,8 +49,8 @@ IND_TO_EN = {
     "high": "high"
 }
 
-# ============ LOCATION INFORMATION ============
-LOCATION_INFO: Dict[str, Dict[str, List[str]]] = {
+# ============ INFORMASI LOKASI ============
+INFO_LOKASI: Dict[str, Dict[str, List[str]]] = {
     "arcamanik": {
         "kelebihan": ["Akses jalan mudah", "Harga relatif terjangkau"],
         "kekurangan": ["Beberapa titik rawan banjir saat hujan lebat"]
@@ -73,58 +73,58 @@ LOCATION_INFO: Dict[str, Dict[str, List[str]]] = {
     }
 }
 
-# ============ DATA LOADING ============
+# ============ MEMUAT DATA ============
 
 @st.cache_data
-def read_locations(path_xlsx: str = "locations.xlsx", path_csv: str = "locations.csv") -> pd.DataFrame:
+def baca_lokasi(jalur_xlsx: str = "locations.xlsx", jalur_csv: str = "locations.csv") -> pd.DataFrame:
     """
     Membaca dan memproses data lokasi dari file Excel atau CSV.
     
     Args:
-        path_xlsx: Path ke file Excel
-        path_csv: Path ke file CSV
+        jalur_xlsx: Jalur ke file Excel
+        jalur_csv: Jalur ke file CSV
         
     Returns:
         DataFrame yang sudah diproses
     """
     try:
         # Coba baca Excel dulu
-        xlsx_path = os.path.join(BASE_DIR, path_xlsx)
-        csv_path = os.path.join(BASE_DIR, path_csv)
+        jalur_xlsx_lengkap = os.path.join(DIREKTORI_DASAR, jalur_xlsx)
+        jalur_csv_lengkap = os.path.join(DIREKTORI_DASAR, jalur_csv)
         
-        if os.path.exists(xlsx_path):
-            df = pd.read_excel(xlsx_path)
-            logger.info(f"✅ Berhasil membaca file: {path_xlsx}")
-        elif os.path.exists(csv_path):
-            df = pd.read_csv(csv_path)
-            logger.info(f"✅ Berhasil membaca file: {path_csv}")
+        if os.path.exists(jalur_xlsx_lengkap):
+            df = pd.read_excel(jalur_xlsx_lengkap)
+            logger.info(f"✅ Berhasil membaca file: {jalur_xlsx}")
+        elif os.path.exists(jalur_csv_lengkap):
+            df = pd.read_csv(jalur_csv_lengkap)
+            logger.info(f"✅ Berhasil membaca file: {jalur_csv}")
         else:
-            error_msg = f"""
+            pesan_error = f"""
             ❌ File tidak ditemukan!
             
             Pastikan salah satu file berikut ada di folder:
-            📁 {BASE_DIR}
+            📁 {DIREKTORI_DASAR}
             
             File yang dicari:
-            - {path_xlsx} ATAU
-            - {path_csv}
+            - {jalur_xlsx} ATAU
+            - {jalur_csv}
             
             Silakan upload file terlebih dahulu.
             """
-            st.error(error_msg)
-            logger.error(f"File tidak ditemukan di {BASE_DIR}")
+            st.error(pesan_error)
+            logger.error(f"File tidak ditemukan di {DIREKTORI_DASAR}")
             st.stop()
             
     except Exception as e:
         st.error(f"❌ Error saat membaca file: {str(e)}")
-        logger.error(f"Error reading file: {e}")
+        logger.error(f"Error membaca file: {e}")
         st.stop()
     
     # Normalisasi nama kolom
     df.columns = [c.lower().strip() for c in df.columns]
     
-    # Mapping nama kolom
-    rename_map = {
+    # Pemetaan nama kolom
+    peta_kolom = {
         "nama": "name",
         "harga_per_m2": "price_per_m2",
         "resiko_banjir": "flood_risk",
@@ -132,29 +132,29 @@ def read_locations(path_xlsx: str = "locations.xlsx", path_csv: str = "locations
         "persentase_rth": "rth_percent",
         "lokasi_strategis": "proximity_public"
     }
-    df = df.rename(columns=rename_map)
+    df = df.rename(columns=peta_kolom)
     
     # Validasi kolom yang diperlukan
-    required = ["name", "price_per_m2", "flood_risk", "crowd_level", "rth_percent", "proximity_public"]
-    missing = [r for r in required if r not in df.columns]
-    if missing:
-        st.error(f"❌ Kolom berikut hilang di file: {', '.join(missing)}")
-        logger.error(f"Missing columns: {missing}")
+    kolom_wajib = ["name", "price_per_m2", "flood_risk", "crowd_level", "rth_percent", "proximity_public"]
+    kolom_hilang = [k for k in kolom_wajib if k not in df.columns]
+    if kolom_hilang:
+        st.error(f"❌ Kolom berikut hilang di file: {', '.join(kolom_hilang)}")
+        logger.error(f"Kolom hilang: {kolom_hilang}")
         st.stop()
     
-    # Map kategori
-    def map_category(val) -> str:
-        """Map kategori dengan safe default"""
-        if pd.isna(val):
+    # Petakan kategori
+    def petakan_kategori(nilai) -> str:
+        """Petakan kategori dengan default aman"""
+        if pd.isna(nilai):
             return "medium"
-        v = str(val).strip().lower()
-        return IND_TO_EN.get(v, "medium")
+        v = str(nilai).strip().lower()
+        return IND_KE_EN.get(v, "medium")
     
-    df["flood_risk"] = df["flood_risk"].apply(map_category)
-    df["crowd_level"] = df["crowd_level"].apply(map_category)
-    df["proximity_public"] = df["proximity_public"].apply(map_category)
+    df["flood_risk"] = df["flood_risk"].apply(petakan_kategori)
+    df["crowd_level"] = df["crowd_level"].apply(petakan_kategori)
+    df["proximity_public"] = df["proximity_public"].apply(petakan_kategori)
     
-    # Convert harga dan RTH
+    # Konversi harga dan RTH
     df["price_per_m2_million"] = pd.to_numeric(df["price_per_m2"], errors="coerce").fillna(0)
     df["price_per_m2"] = df["price_per_m2_million"] * 1_000_000
     df["rth_percent"] = pd.to_numeric(df["rth_percent"], errors="coerce").fillna(0)
@@ -162,9 +162,9 @@ def read_locations(path_xlsx: str = "locations.xlsx", path_csv: str = "locations
     logger.info(f"✅ Berhasil memproses {len(df)} lokasi")
     return df
 
-# ============ SCORING FUNCTIONS ============
+# ============ FUNGSI PENILAIAN ============
 
-def normalize_price_scores(df: pd.DataFrame) -> np.ndarray:
+def normalisasi_skor_harga(df: pd.DataFrame) -> np.ndarray:
     """
     Normalisasi skor harga: semakin murah semakin tinggi skornya.
     
@@ -174,17 +174,17 @@ def normalize_price_scores(df: pd.DataFrame) -> np.ndarray:
     Returns:
         Array skor yang dinormalisasi (0-1)
     """
-    prices = df["price_per_m2"].values.astype(float)
-    mn, mx = prices.min(), prices.max()
+    harga = df["price_per_m2"].values.astype(float)
+    minimal, maksimal = harga.min(), harga.max()
     
-    if mn == mx:
-        logger.warning("Semua harga sama, returning uniform scores")
-        return np.ones_like(prices)
+    if minimal == maksimal:
+        logger.warning("Semua harga sama, mengembalikan skor seragam")
+        return np.ones_like(harga)
     
-    return (mx - prices) / (mx - mn)
+    return (maksimal - harga) / (maksimal - minimal)
 
 @st.cache_data
-def compute_scores(df: pd.DataFrame) -> pd.DataFrame:
+def hitung_skor(df: pd.DataFrame) -> pd.DataFrame:
     """
     Menghitung skor total untuk setiap lokasi berdasarkan kriteria.
     
@@ -195,189 +195,189 @@ def compute_scores(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame dengan kolom skor tambahan
     """
     # Hitung skor individual
-    price_scores = normalize_price_scores(df)
-    flood_scores = df["flood_risk"].map(FLOOD_MAP).fillna(0.5).values
-    crowd_scores = df["crowd_level"].map(CROWD_MAP).fillna(0.5).values
-    prox_scores = df["proximity_public"].map(PROX_MAP).fillna(0.5).values
+    skor_harga = normalisasi_skor_harga(df)
+    skor_banjir = df["flood_risk"].map(PETA_BANJIR).fillna(0.5).values
+    skor_keramaian = df["crowd_level"].map(PETA_KERAMAIAN).fillna(0.5).values
+    skor_akses = df["proximity_public"].map(PETA_AKSES).fillna(0.5).values
     
     # Normalisasi RTH
     r = df["rth_percent"].values.astype(float)
     if r.max() != r.min():
-        rth_scores = (r - r.min()) / (r.max() - r.min())
+        skor_rth = (r - r.min()) / (r.max() - r.min())
     else:
-        rth_scores = np.ones_like(r)
+        skor_rth = np.ones_like(r)
     
     # Hitung skor final dengan bobot
-    final = (
-        WEIGHTS["price"] * price_scores +
-        WEIGHTS["flood"] * flood_scores +
-        WEIGHTS["crowd"] * crowd_scores +
-        WEIGHTS["prox"] * prox_scores +
-        WEIGHTS["rth"] * rth_scores
+    skor_final = (
+        BOBOT["harga"] * skor_harga +
+        BOBOT["banjir"] * skor_banjir +
+        BOBOT["keramaian"] * skor_keramaian +
+        BOBOT["akses"] * skor_akses +
+        BOBOT["rth"] * skor_rth
     )
     df2 = df.copy()
-    df2["score"] = final
-    df2["price_score"] = price_scores
-    df2["flood_score"] = flood_scores
-    df2["crowd_score"] = crowd_scores
-    df2["prox_score"] = prox_scores
-    df2["rth_score"] = rth_scores
+    df2["score"] = skor_final
+    df2["price_score"] = skor_harga
+    df2["flood_score"] = skor_banjir
+    df2["crowd_score"] = skor_keramaian
+    df2["prox_score"] = skor_akses
+    df2["rth_score"] = skor_rth
     
     logger.info(f"✅ Skor berhasil dihitung untuk {len(df2)} lokasi")
     return df2.sort_values("score", ascending=False)
 
-# ============ IMAGE HANDLING ============
+# ============ PENANGANAN GAMBAR ============
 
-def sanitize_filename(name: str) -> str:
+def bersihkan_nama_file(nama: str) -> str:
     """
     Membersihkan nama file untuk pencarian gambar.
     
     Args:
-        name: Nama lokasi
+        nama: Nama lokasi
         
     Returns:
         Nama file yang sudah dibersihkan
     """
-    s = name.lower().strip()
+    s = nama.lower().strip()
     s = s.replace(" ", "_")
     s = re.sub(r'[^a-z0-9_]', '', s)
     return s + ".jpg"
 
-def possible_image_paths(name: str) -> List[str]:
+def kemungkinan_jalur_gambar(nama: str) -> List[str]:
     """
-    Generate daftar kemungkinan path gambar untuk lokasi.
+    Generate daftar kemungkinan jalur gambar untuk lokasi.
     
     Args:
-        name: Nama lokasi
+        nama: Nama lokasi
         
     Returns:
-        List path yang mungkin
+        List jalur yang mungkin
     """
-    base_names = [
-        sanitize_filename(name),
-        name.lower().replace(" ", "") + ".jpg",
-        name.lower().replace(" ", "-") + ".jpg",
-        name + ".jpg"
+    nama_dasar = [
+        bersihkan_nama_file(nama),
+        nama.lower().replace(" ", "") + ".jpg",
+        nama.lower().replace(" ", "-") + ".jpg",
+        nama + ".jpg"
     ]
     
-    paths = []
-    for base in base_names:
-        paths.append(os.path.join(BASE_DIR, base))
-        paths.append(os.path.join(BASE_DIR, "static", "images", "lokasi", base))
-    return list(dict.fromkeys(paths))
+    jalur = []
+    for nd in nama_dasar:
+        jalur.append(os.path.join(DIREKTORI_DASAR, nd))
+        jalur.append(os.path.join(DIREKTORI_DASAR, "static", "images", "lokasi", nd))
+    return list(dict.fromkeys(jalur))
 
-def find_existing_image(name: str) -> Optional[str]:
+def cari_gambar_tersedia(nama: str) -> Optional[str]:
     """
     Mencari gambar yang ada untuk lokasi tertentu.
     
     Args:
-        name: Nama lokasi
+        nama: Nama lokasi
         
     Returns:
-        Path gambar jika ditemukan, None jika tidak
+        Jalur gambar jika ditemukan, None jika tidak
     """
     try:
-        for p in possible_image_paths(name):
-            if os.path.exists(p):
-                logger.info(f"✅ Gambar ditemukan: {p}")
-                return p
-        logger.warning(f"⚠️ Gambar tidak ditemukan untuk: {name}")
+        for j in kemungkinan_jalur_gambar(nama):
+            if os.path.exists(j):
+                logger.info(f"✅ Gambar ditemukan: {j}")
+                return j
+        logger.warning(f"⚠️ Gambar tidak ditemukan untuk: {nama}")
         return None
     except Exception as e:
-        logger.error(f"Error saat mencari gambar {name}: {e}")
+        logger.error(f"Error saat mencari gambar {nama}: {e}")
         return None
 
-# ============ FORMATTING FUNCTIONS ============
+# ============ FUNGSI PEMFORMATAN ============
 
-def format_total_price(price: float) -> str:
+def format_harga_total(harga: float) -> str:
     """
     Format harga dalam juta atau miliar.
     
     Args:
-        price: Harga dalam rupiah
+        harga: Harga dalam rupiah
         
     Returns:
         String harga yang terformat
     """
-    juta = price / 1_000_000
+    juta = harga / 1_000_000
     if juta < 1000:
         return f"{juta:.0f} juta"
     return f"{juta/1000:.1f} miliar"
 
-# ============ ANALYSIS FUNCTIONS ============
+# ============ FUNGSI ANALISIS ============
 
-def analyze_advantages_disadvantages(row: pd.Series) -> Tuple[List[str], List[str]]:
+def analisis_kelebihan_kekurangan(baris: pd.Series) -> Tuple[List[str], List[str]]:
     """
     Menganalisis kelebihan dan kekurangan suatu lokasi.
     
     Args:
-        row: Series data lokasi
+        baris: Series data lokasi
         
     Returns:
         Tuple (kelebihan, kekurangan)
     """
-    advantages = []
-    disadvantages = []
+    kelebihan = []
+    kekurangan = []
     
     # PRIORITAS 1: Analisis berdasarkan data DINAMIS (dari perhitungan)
     
     # Analisis HARGA (paling penting, bobot 40%)
-    price_score = row.get("price_score", 0)
-    if price_score > 0.7:
-        advantages.append("Harga sangat terjangkau dibanding lokasi lain.")
-    elif price_score > PRICE_SCORE_THRESHOLD:
-        advantages.append("Harga relatif murah dibanding kecamatan lain.")
-    elif price_score < 0.3:
-        disadvantages.append("Harga cenderung mahal.")
+    skor_harga = baris.get("price_score", 0)
+    if skor_harga > 0.7:
+        kelebihan.append("Harga sangat terjangkau dibanding lokasi lain.")
+    elif skor_harga > AMBANG_SKOR_HARGA:
+        kelebihan.append("Harga relatif murah dibanding kecamatan lain.")
+    elif skor_harga < 0.3:
+        kekurangan.append("Harga cenderung mahal.")
     
     # Analisis BANJIR (bobot 30%)
-    if row["flood_risk"] == "low":
-        advantages.append("Area ini memiliki risiko banjir yang rendah.")
-    elif row["flood_risk"] == "high":
-        disadvantages.append("Berpotensi terdampak banjir.")
+    if baris["flood_risk"] == "low":
+        kelebihan.append("Area ini memiliki risiko banjir yang rendah.")
+    elif baris["flood_risk"] == "high":
+        kekurangan.append("Berpotensi terdampak banjir.")
     
     # Analisis KERAMAIAN (bobot 15%)
-    if row["crowd_level"] == "low":
-        advantages.append("Lingkungan sekitar tenang.")
-    elif row["crowd_level"] == "high":
-        disadvantages.append("Keramaian area sekitar tinggi — kurang nyaman.")
+    if baris["crowd_level"] == "low":
+        kelebihan.append("Lingkungan sekitar tenang.")
+    elif baris["crowd_level"] == "high":
+        kekurangan.append("Keramaian area sekitar tinggi — kurang nyaman.")
     
     # Analisis AKSES PUBLIK (bobot 10%)
-    if row["proximity_public"] == "high":
-        advantages.append("Dekat dengan fasilitas umum.")
-    elif row["proximity_public"] == "low":
-        disadvantages.append("Akses fasilitas umum terbatas.")
+    if baris["proximity_public"] == "high":
+        kelebihan.append("Dekat dengan fasilitas umum.")
+    elif baris["proximity_public"] == "low":
+        kekurangan.append("Akses fasilitas umum terbatas.")
     
     # Analisis RTH (bobot 5%)
-    if row["rth_percent"] >= RTH_THRESHOLD_HIGH:
-        advantages.append("RTH luas dan memadai.")
-    elif row["rth_percent"] < RTH_THRESHOLD_LOW:
-        disadvantages.append("RTH rendah — potensi area padat.")
+    if baris["rth_percent"] >= AMBANG_RTH_TINGGI:
+        kelebihan.append("RTH luas dan memadai.")
+    elif baris["rth_percent"] < AMBANG_RTH_RENDAH:
+        kekurangan.append("RTH rendah — potensi area padat.")
     
     # PRIORITAS 2: Tambahkan info dari database
-    key = row["name"].strip().lower().replace(" ", "").replace("-", "")
-    if key in LOCATION_INFO:
-        info = LOCATION_INFO[key]
+    kunci = baris["name"].strip().lower().replace(" ", "").replace("-", "")
+    if kunci in INFO_LOKASI:
+        info = INFO_LOKASI[kunci]
         
         # Filter kelebihan: jangan tambah jika sudah ada info harga dari analisis dinamis
-        for adv in info.get("kelebihan", []):
-            if "harga" in adv.lower() or "murah" in adv.lower() or "mahal" in adv.lower():
+        for klb in info.get("kelebihan", []):
+            if "harga" in klb.lower() or "murah" in klb.lower() or "mahal" in klb.lower():
                 continue
-            if adv not in advantages:
-                advantages.append(adv)
+            if klb not in kelebihan:
+                kelebihan.append(klb)
         
         # Filter kekurangan: jangan tambah jika kontradiksi dengan analisis dinamis
-        for dis in info.get("kekurangan", []):
-            if "harga" in dis.lower() or "murah" in dis.lower() or "mahal" in dis.lower():
+        for krg in info.get("kekurangan", []):
+            if "harga" in krg.lower() or "murah" in krg.lower() or "mahal" in krg.lower():
                 continue
-            if dis not in disadvantages:
-                disadvantages.append(dis)
+            if krg not in kekurangan:
+                kekurangan.append(krg)
     
-    return advantages, disadvantages
+    return kelebihan, kekurangan
 
-# ============ STREAMLIT UI ============
+# ============ ANTARMUKA STREAMLIT ============
 
-def main():
+def utama():
     """Fungsi utama aplikasi Streamlit"""
     
     st.set_page_config(layout="wide", page_title="Rekomendasi Tanah Bandung")
@@ -398,69 +398,69 @@ def main():
     </div>
     """, unsafe_allow_html=True)
     
-    # Input dari user
-    col1, col2, col3 = st.columns(3)
+    # Input dari pengguna
+    kol1, kol2, kol3 = st.columns(3)
     
-    with col1:
+    with kol1:
         budget_miliar = st.number_input(
             "💰 Masukkan Budget (dalam MILIAR)",
-            min_value=MIN_BUDGET_MILIAR,
-            max_value=MAX_BUDGET_MILIAR,
+            min_value=BUDGET_MINIMAL_MILIAR,
+            max_value=BUDGET_MAKSIMAL_MILIAR,
             step=0.1,
             value=1.0,
             help="Masukkan budget Anda dalam satuan miliar rupiah"
         )
         budget = budget_miliar * 1_000_000_000
     
-    with col2:
+    with kol2:
         luas = st.number_input(
             "📏 Masukkan Luas Tanah (m²)",
-            min_value=MIN_LUAS,
+            min_value=LUAS_MINIMAL,
             step=5,
             value=100,
             help="Masukkan luas tanah yang diinginkan dalam meter persegi"
         )
     
-    # Load data
-    df = read_locations()
-    max_loc = len(df)
+    # Muat data
+    df = baca_lokasi()
+    lokasi_maks = len(df)
     
-    with col3:
+    with kol3:
         jumlah_rekom = st.number_input(
             "🔢 Jumlah lokasi yang ingin dianalisis:",
             min_value=1,
-            max_value=max_loc,
-            value=min(10, max_loc),
+            max_value=lokasi_maks,
+            value=min(10, lokasi_maks),
             step=1,
-            help=f"Pilih 1-{max_loc} lokasi untuk dianalisis"
+            help=f"Pilih 1-{lokasi_maks} lokasi untuk dianalisis"
         )
     
     # Tampilkan bobot
     st.markdown("### 📘 Bobot Penilaian Lokasi")
     st.markdown(f"""
-    - **Harga tanah:** {int(WEIGHTS['price']*100)}% (semakin murah → skor lebih tinggi)  
-    - **Risiko banjir:** {int(WEIGHTS['flood']*100)}% (rendah → skor lebih tinggi)  
-    - **Tingkat keramaian:** {int(WEIGHTS['crowd']*100)}% (low → skor lebih tinggi)  
-    - **Akses fasilitas publik:** {int(WEIGHTS['prox']*100)}% (high → skor lebih tinggi)  
-    - **RTH:** {int(WEIGHTS['rth']*100)}% (persentase RTH lebih besar → skor lebih tinggi)  
+    - **Harga tanah:** {int(BOBOT['harga']*100)}% (semakin murah → skor lebih tinggi)  
+    - **Risiko banjir:** {int(BOBOT['banjir']*100)}% (rendah → skor lebih tinggi)  
+    - **Tingkat keramaian:** {int(BOBOT['keramaian']*100)}% (rendah → skor lebih tinggi)  
+    - **Akses fasilitas publik:** {int(BOBOT['akses']*100)}% (tinggi → skor lebih tinggi)  
+    - **RTH:** {int(BOBOT['rth']*100)}% (persentase RTH lebih besar → skor lebih tinggi)  
     """)
     st.caption("Penjelasan: skor akhir dihitung dengan menggabungkan kelima kriteria di atas sesuai bobot. Grafik menampilkan skor akhir dalam persen (0–100%).")
     
     # Tombol analisis
     if st.button("🔍 Tampilkan Rekomendasi", type="primary"):
         with st.spinner("Menganalisis lokasi..."):
-            # Compute scores
-            scored = compute_scores(df)
-            scored["total_price"] = scored["price_per_m2"] * luas
+            # Hitung skor
+            hasil_skor = hitung_skor(df)
+            hasil_skor["total_price"] = hasil_skor["price_per_m2"] * luas
             
             # Filter berdasarkan budget
-            affordable = scored[scored["total_price"] <= budget]
+            terjangkau = hasil_skor[hasil_skor["total_price"] <= budget]
             
-            if affordable.empty:
+            if terjangkau.empty:
                 st.error(f"""
                 ❌ Tidak ada lokasi yang sesuai dengan budget Anda!
                 
-                **Budget Anda:** {format_total_price(budget)}  
+                **Budget Anda:** {format_harga_total(budget)}  
                 **Luas:** {luas} m²
                 
                 💡 Saran:
@@ -470,19 +470,19 @@ def main():
                 st.stop()
             
             # Ambil top K
-            topk = affordable.head(jumlah_rekom).reset_index(drop=True)
+            topk = terjangkau.head(jumlah_rekom).reset_index(drop=True)
             top3 = topk.head(3).reset_index(drop=True)
             
-            logger.info(f"✅ Ditemukan {len(affordable)} lokasi terjangkau")
+            logger.info(f"✅ Ditemukan {len(terjangkau)} lokasi terjangkau")
             
-            # Display table
-            display_tbl = topk[[
+            # Tampilkan tabel
+            tabel_tampil = topk[[
                 "name", "price_per_m2_million", "total_price",
                 "flood_risk", "crowd_level", "proximity_public",
                 "rth_percent"
             ]].copy()
             
-            display_tbl = display_tbl.rename(columns={
+            tabel_tampil = tabel_tampil.rename(columns={
                 "name": "Nama",
                 "price_per_m2_million": "Harga_per_m2",
                 "total_price": "Harga_total",
@@ -492,26 +492,26 @@ def main():
                 "rth_percent": "RTH (%)",
             })
             
-            display_tbl["Harga_total"] = display_tbl["Harga_total"].apply(format_total_price)
-            display_tbl["Harga_per_m2"] = display_tbl["Harga_per_m2"].apply(lambda x: f"{x:.0f} juta/m²")
-            display_tbl["RTH (%)"] = display_tbl["RTH (%)"].apply(lambda x: f"{x:.0f}%")
+            tabel_tampil["Harga_total"] = tabel_tampil["Harga_total"].apply(format_harga_total)
+            tabel_tampil["Harga_per_m2"] = tabel_tampil["Harga_per_m2"].apply(lambda x: f"{x:.0f} juta/m²")
+            tabel_tampil["RTH (%)"] = tabel_tampil["RTH (%)"].apply(lambda x: f"{x:.0f}%")
             
-            # Display table
+            # Tampilkan tabel
             st.subheader(f"📌 {len(topk)} Lokasi yang Dianalisis (sesuai budget)")
-            st.dataframe(display_tbl, use_container_width=True)
+            st.dataframe(tabel_tampil, use_container_width=True)
             
-            # Display top 3
+            # Tampilkan top 3
             st.subheader("🏆 3 Rekomendasi Lokasi Terbaik")
             
-            for i, row in top3.iterrows():
-                st.markdown(f"### 📍 {row['name']}")
+            for i, baris in top3.iterrows():
+                st.markdown(f"### 📍 {baris['name']}")
                 
                 # Tampilkan gambar
-                img_path = find_existing_image(row["name"])
-                if img_path:
-                    st.image(img_path, width=400)
+                jalur_gambar = cari_gambar_tersedia(baris["name"])
+                if jalur_gambar:
+                    st.image(jalur_gambar, width=400)
                 else:
-                    if row["name"].strip().lower() == "cidadap":
+                    if baris["name"].strip().lower() == "cidadap":
                         st.markdown("""
                         **📘 Deskripsi Lokasi Cidadap (Foto tidak tersedia)**  
                         - 60% wilayah berupa dataran datar hingga berombak  
@@ -522,47 +522,47 @@ def main():
                         st.info("📷 Foto lokasi belum tersedia.")
                 
                 # Detail informasi
-                st.write(f"- **Harga per m²:** {row['price_per_m2_million']:.0f} juta/m²")
-                st.write(f"- **Harga total:** {format_total_price(row['total_price'])}")
-                st.write(f"- **Risiko banjir:** {row['flood_risk']}")
-                st.write(f"- **Tingkat keramaian:** {row['crowd_level']}")
-                st.write(f"- **Akses fasilitas publik:** {row['proximity_public']}")
-                st.write(f"- **RTH:** {row['rth_percent']:.0f}%")
+                st.write(f"- **Harga per m²:** {baris['price_per_m2_million']:.0f} juta/m²")
+                st.write(f"- **Harga total:** {format_harga_total(baris['total_price'])}")
+                st.write(f"- **Risiko banjir:** {baris['flood_risk']}")
+                st.write(f"- **Tingkat keramaian:** {baris['crowd_level']}")
+                st.write(f"- **Akses fasilitas publik:** {baris['proximity_public']}")
+                st.write(f"- **RTH:** {baris['rth_percent']:.0f}%")
                 
                 # Analisis kelebihan & kekurangan
-                advantages, disadvantages = analyze_advantages_disadvantages(row)
+                kelebihan, kekurangan = analisis_kelebihan_kekurangan(baris)
                 
                 st.markdown("#### 🟢 Kelebihan:")
-                if advantages:
-                    for a in advantages:
-                        st.markdown(f"- {a}")
+                if kelebihan:
+                    for k in kelebihan:
+                        st.markdown(f"- {k}")
                 else:
                     st.markdown("- (Tidak ada catatan kelebihan spesifik.)")
                 
                 st.markdown("#### 🔴 Kekurangan:")
-                if disadvantages:
-                    for d in disadvantages:
-                        st.markdown(f"- {d}")
+                if kekurangan:
+                    for k in kekurangan:
+                        st.markdown(f"- {k}")
                 else:
                     st.markdown("- (Tidak ada catatan kekurangan spesifik.)")
                 
                 st.markdown("---")
             
-            # Bar Chart
+            # Grafik Batang
             st.subheader("📊 Perbandingan Antar Kecamatan (Top 3)")
             
-            labels = top3["name"].tolist()
-            scores_pct = (top3["score"].values * 100).round(1)
+            label = top3["name"].tolist()
+            skor_persen = (top3["score"].values * 100).round(1)
             
             fig, ax = plt.subplots(figsize=(8, 4))
-            bars = ax.bar(labels, scores_pct, width=0.5, color=['#4CAF50', '#2196F3', '#FF9800'])
+            batang = ax.bar(label, skor_persen, width=0.5, color=['#4CAF50', '#2196F3', '#FF9800'])
             
             ax.set_ylim(0, 100)
             ax.set_ylabel("Skor (%)", fontsize=12)
             ax.set_title("Skor Total Lokasi (dalam %) — Semakin tinggi semakin direkomendasikan", fontsize=14)
             ax.grid(axis='y', alpha=0.3)
             
-            for bar, h in zip(bars, scores_pct):
+            for bar, h in zip(batang, skor_persen):
                 ax.annotate(f"{h:.1f}%", xy=(bar.get_x() + bar.get_width() / 2, h),
                             xytext=(0, 6), textcoords="offset points", ha="center", fontweight='bold')
             
@@ -570,59 +570,56 @@ def main():
             
             st.markdown(f"""
             **Keterangan skor:** Skor akhir dihitung dari kombinasi kriteria berikut dengan bobot:
-            - **Harga tanah:** {int(WEIGHTS['price']*100)}%
-            - **Risiko banjir:** {int(WEIGHTS['flood']*100)}%
-            - **Tingkat keramaian:** {int(WEIGHTS['crowd']*100)}%
-            - **Akses fasilitas publik:** {int(WEIGHTS['prox']*100)}%
-            - **RTH:** {int(WEIGHTS['rth']*100)}%
+            - **Harga tanah:** {int(BOBOT['harga']*100)}%
+            - **Risiko banjir:** {int(BOBOT['banjir']*100)}%
+            - **Tingkat keramaian:** {int(BOBOT['keramaian']*100)}%
+            - **Akses fasilitas publik:** {int(BOBOT['akses']*100)}%
+            - **RTH:** {int(BOBOT['rth']*100)}%
             """)
             st.caption("Contoh interpretasi: Nilai 78% artinya lokasi memperoleh skor total 0.78 berdasarkan bobot di atas.")
             
-            # Radar Chart
-            st.subheader("Radar Chart Perbandingan Kriteria (Top 3)")
+            # Grafik Radar
+            st.subheader("Grafik Radar Perbandingan Kriteria (Top 3)")
             
-            categories = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
+            kategori = ["Harga Lahan", "Risiko Banjir", "Tingkat Keramaian", "Akses Publik", "RTH (%)"]
             
-            values = []
-            for _, row in top3.iterrows():
-                flood_risk_score = 1 - row["flood_score"]
-                values.append([
-                    row["price_score"],
-                    flood_risk_score,
-                    row["crowd_score"],
-                    row["prox_score"],
-                    row["rth_score"]
+            nilai = []
+            for _, baris in top3.iterrows():
+                skor_risiko_banjir = 1 - baris["flood_score"]
+                nilai.append([
+                    baris["price_score"],
+                    skor_risiko_banjir,
+                    baris["crowd_score"],
+                    baris["prox_score"],
+                    baris["rth_score"]
                 ])
             
-            num_vars = len(categories)
-            angles = np.linspace(0, 2*np.pi, num_vars, endpoint=False).tolist()
-            angles += angles[:1]
+            jumlah_var = len(kategori)
+            sudut = np.linspace(0, 2*np.pi, jumlah_var, endpoint=False).tolist()
+            sudut += sudut[:1]
             
             fig = plt.figure(figsize=(8, 8))
             ax = plt.subplot(111, polar=True)
             
-            colors = ['#4CAF50', '#2196F3', '#FF9800']
-            for i, loc in enumerate(top3["name"]):
-                v = values[i]
+            warna = ['#4CAF50', '#2196F3', '#FF9800']
+            for i, lok in enumerate(top3["name"]):
+                v = nilai[i]
                 v = v + v[:1]
-                ax.plot(angles, v, linewidth=2, label=loc, color=colors[i])
-                ax.fill(angles, v, alpha=0.15, color=colors[i])
+                ax.plot(sudut, v, linewidth=2, label=lok, color=warna[i])
+                ax.fill(sudut, v, alpha=0.15, color=warna[i])
             
-            ax.set_xticks(angles[:-1])
-            ax.set_xticklabels(categories, size=10)
+            ax.set_xticks(sudut[:-1])
+            ax.set_xticklabels(kategori, size=10)
             ax.set_yticks([])
             ax.set_ylim(0, 1.05)
             ax.grid(True)
             
-            plt.title("Perbandingan Kriteria Lokasi (Radar Chart)", size=14, pad=20, fontweight='bold')
+            plt.title("Perbandingan Kriteria Lokasi (Grafik Radar)", size=14, pad=20, fontweight='bold')
             ax.legend(loc="upper right", bbox_to_anchor=(1.3, 1.1), fontsize=10)
             
             st.pyplot(fig)
             
-            st.success("✅ Analisis selesai! Apakah anda sudah menentukan hasilnnya?.")
+            st.success("✅ Analisis selesai! Apakah anda sudah menentukan hasilnya?")
 
 if __name__ == "__main__":
-    main()
-
-
-
+    utama()
