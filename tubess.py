@@ -619,8 +619,9 @@ def main():
             
             st.pyplot(fig)
             
-            st.success("✅ Analisis selesai! Scroll ke atas untuk melihat hasil lengkap.")
+            st.success("✅ Analisis selesai! Apakah anda sudah menentukan hasilnnya?.")
 
 if __name__ == "__main__":
     main()
+
 
